@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+      "charliermarsh.ruff",
+      "golang.go",
+      "jnoortheen.nix-ide",
+      "ms-python.python",
+      "ms-vscode.powershell",
+      "skellock.just",
+      "timonwong.shellcheck"
+    ]
+}

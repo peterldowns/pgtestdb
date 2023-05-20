@@ -1,0 +1,40 @@
+{
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/.git": true,
+    "**/__debug_bin": true,
+    ".go/": true,
+    ".toolchain": true,
+    "bin": true,
+    "result": true,
+    "tmp": true
+  },
+  "explorer.expandSingleFolderWorkspaces": true,
+  "go.autocompleteUnimportedPackages": true,
+  "go.coverOnSingleTest": true,
+  "go.coverOnSingleTestFile": true,
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--config=${workspaceFolder}/.golangci.yaml", "--fast", "--fix"],
+  "go.lintOnSave": "package",
+  "go.testEnvVars": {},
+  "go.testFlags": ["-tags", "manual"],
+  "go.coverageOptions": "showCoveredCodeOnly",
+  "go.buildOnSave": "off",
+  "go.vetOnSave": "off",
+  "go.useLanguageServer": true,
+  "go.toolsManagement.autoUpdate": false,
+  "go.toolsManagement.checkForUpdates": "off",
+  "gopls": {
+    "buildFlags": ["-tags", "manual"],
+    "formatting.gofumpt": true,
+    "formatting.local": "github.com/peterldowns/testdb",
+    "build.directoryFilters": []
+  },
+  "[go]": {
+    "editor.formatOnSave": true
+  },
+  "nix.formatterPath": "nixpkgs-fmt",
+  "[nix]": {
+    "editor.formatOnSave": true
+  }
+}
