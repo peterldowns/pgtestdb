@@ -1,0 +1,23 @@
+version: "3.6"
+services:
+  testdb:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: password
+    restart: unless-stopped
+    volumes:
+      # Uses a tmpfs volume to make tests extremely fast. The data in test
+      # databases is not persisted across restarts, nor does it need to be.
+      - type: tmpfs
+        target: /var/lib/postgresql/data/
+    command:
+      - "postgres"
+      # turn off fsync for speed
+      - "-c"
+      - "fsync=off"
+      # log everything for debugging
+      - "-c"
+      - "log_statement=all"
+    ports:
+      - "5433:5432"
+
