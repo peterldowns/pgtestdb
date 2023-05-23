@@ -10,8 +10,8 @@ import (
 
 	"github.com/peterldowns/testdb/pkg/testdb"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/peterldowns/testy/assert"
+	"github.com/peterldowns/testy/check"
 )
 
 // migrator is an implementation of the Migrator interface, and will
@@ -89,16 +89,16 @@ func TestNew(t *testing.T) {
 	db := new(t)
 
 	rows, err := db.QueryContext(ctx, "SELECT name FROM cats ORDER BY name ASC")
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	defer rows.Close()
 
 	var names []string
 	for rows.Next() {
 		var name string
-		require.NoError(t, rows.Scan(&name))
+		assert.Nil(t, rows.Scan(&name))
 		names = append(names, name)
 	}
-	require.Equal(t, []string{"daisy", "sunny"}, names)
+	check.Equal(t, []string{"daisy", "sunny"}, names)
 }
 
 // These two tests should show that creating many different testdbs in parallel
@@ -114,7 +114,7 @@ func TestParallel1(t *testing.T) {
 
 			var count int
 			err := db.QueryRowContext(ctx, "SELECT COUNT(*) from cats").Scan(&count)
-			require.NoError(t, err)
+			assert.Nil(t, err)
 			assert.Equal(t, 2, count)
 		})
 	}
@@ -133,8 +133,8 @@ func TestParallel2(t *testing.T) {
 
 			var count int
 			err := db.QueryRowContext(ctx, "SELECT COUNT(*) from cats").Scan(&count)
-			require.NoError(t, err)
-			assert.Equal(t, 2, count)
+			assert.Nil(t, err)
+			check.Equal(t, 2, count)
 		})
 	}
 }
