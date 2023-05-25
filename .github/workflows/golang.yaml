@@ -1,0 +1,53 @@
+name: golang
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  test:
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+          # TODO: unable to turn off fsync easily, see
+          # https://github.com/orgs/community/discussions/26688#discussioncomment-3252882
+          # and
+          # https://github.com/actions/runner/discussions/1872
+        ports:
+          - 5433:5432
+        # Use a temporary directory for data by passing --mount to the `docker`
+        # command; could also attempt to use the volumes: github serrvice
+        # option.
+        options: >-
+          --mount type=tmpfs,destination=/var/lib/postgresql/data
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup-go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+          cache: true
+          cache-dependency-path: go.sum
+      - name: test
+        run: go test ./...
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup-go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+          cache: true
+          cache-dependency-path: go.sum
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.52.2

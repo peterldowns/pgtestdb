@@ -1,5 +1,5 @@
 {
-  description = "TODO";
+  description = "testdb makes it cheap and easy to create ephemeral Postgres databases for your golang tests.";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
 
@@ -45,6 +45,7 @@
                 # Other
                 just
                 postgresql
+                docker
               ];
 
               shellHook = ''

@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	_ "github.com/lib/pq"
-
-	"github.com/peterldowns/testdb/pkg/testdb"
+	"github.com/peterldowns/testdb"
 
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
@@ -19,7 +17,15 @@ import (
 type migrator struct{}
 
 func (*migrator) Hash() (string, error) {
-	return "dummyhash", nil
+	return "dummyhash10", nil
+}
+
+func (*migrator) Prepare(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+CREATE EXTENSION pgcrypto;
+CREATE EXTENSION pg_trgm;
+	`)
+	return err
 }
 
 func (*migrator) Migrate(ctx context.Context, db *sql.DB) error {
@@ -42,10 +48,7 @@ VALUES ('daisy'), ('sunny');
 INSERT INTO migrations (id)
 VALUES ('cats_0001');
 `)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (*migrator) Verify(ctx context.Context, db *sql.DB) error {
@@ -70,23 +73,25 @@ func (*migrator) Verify(ctx context.Context, db *sql.DB) error {
 // We expect that you will wrap testdb.New inside your own helper, like this,
 // which sets up the db configuration (based on your own environment/configs)
 // and passes an instance of the Migrator interface.
-func new(t *testing.T) *sql.DB {
+func New(t *testing.T) *sql.DB {
+	t.Helper()
 	dbconf := testdb.Config{
 		User:     "postgres",
 		Password: "password",
 		Host:     "localhost",
 		Port:     "5433",
-		Database: "postgres",
 		Options:  "sslmode=disable",
 	}
 	m := &migrator{}
 	return testdb.New(t, dbconf, m)
 }
 
+// Checks to make sure that the testdb is created succesfully and that all
+// migrations are applied.
 func TestNew(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db := new(t)
+	db := New(t)
 
 	rows, err := db.QueryContext(ctx, "SELECT name FROM cats ORDER BY name ASC")
 	assert.Nil(t, err)
@@ -101,6 +106,27 @@ func TestNew(t *testing.T) {
 	check.Equal(t, []string{"daisy", "sunny"}, names)
 }
 
+// Based on the Prepare() method of our dummy migrator, we should have enabled
+// the `pg_trgm` and `pgcrypto` extensions.  The `plpgsql` extension is always
+// enabled by default. This test makes sure that these extensions
+// are installed.
+func TestExtensionsInstalled(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := New(t)
+	rows, err := db.QueryContext(ctx, "SELECT extname FROM pg_extension ORDER BY extname ASC")
+	assert.Nil(t, err)
+	defer rows.Close()
+
+	var extnames []string
+	for rows.Next() {
+		var extname string
+		assert.Nil(t, rows.Scan(&extname))
+		extnames = append(extnames, extname)
+	}
+	check.Equal(t, []string{"pg_trgm", "pgcrypto", "plpgsql"}, extnames)
+}
+
 // These two tests should show that creating many different testdbs in parallel
 // is quite fast. Each of the tests creates and destroys 10 databases.
 func TestParallel1(t *testing.T) {
@@ -110,7 +136,7 @@ func TestParallel1(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("subtest_%d", i), func(t *testing.T) {
 			t.Parallel()
-			db := new(t)
+			db := New(t)
 
 			var count int
 			err := db.QueryRowContext(ctx, "SELECT COUNT(*) from cats").Scan(&count)
@@ -129,7 +155,7 @@ func TestParallel2(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("subtest_%d", i), func(t *testing.T) {
 			t.Parallel()
-			db := new(t)
+			db := New(t)
 
 			var count int
 			err := db.QueryRowContext(ctx, "SELECT COUNT(*) from cats").Scan(&count)
@@ -137,4 +163,15 @@ func TestParallel2(t *testing.T) {
 			check.Equal(t, 2, count)
 		})
 	}
+}
+
+func TestAQuery(t *testing.T) {
+	t.Parallel()
+	db := New(t)
+	ctx := context.Background()
+
+	var result string
+	err := db.QueryRowContext(ctx, "SELECT 'hello world'").Scan(&result)
+	check.Nil(t, err)
+	check.Equal(t, "hello world", result)
 }

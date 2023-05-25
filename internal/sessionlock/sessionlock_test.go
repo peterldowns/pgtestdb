@@ -8,11 +8,9 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
-
 	"github.com/peterldowns/testy/check"
 
-	"github.com/peterldowns/testdb/pkg/internal/withdb"
+	"github.com/peterldowns/testdb/internal/withdb"
 )
 
 func TestWithSessionLock(t *testing.T) {

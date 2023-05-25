@@ -18,6 +18,13 @@ type Migrator interface {
 	// would result in the same schema and data.
 	Hash() (string, error)
 
+	// Prepare should perform any plugin or extension installations necessary to
+	// make the database ready for the migrations. For instance, you may want to
+	// enable certain extensions like `trigram` or `pgcrypto`, or creating or
+	// altering certain roles and permissions.
+	// Prepare will be given a *sql.DB connected to the template database.
+	Prepare(context.Context, *sql.DB) error
+
 	// Migrate is a function that actually performs the schema and data
 	// migrations to provision a template database. The connection given to this
 	// function is to an entirely new, empty, database. Migrate will be called

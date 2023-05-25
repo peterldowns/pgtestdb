@@ -1,7 +1,7 @@
 version: "3.6"
 services:
   testdb:
-    image: postgres:13
+    image: postgres:15
     environment:
       POSTGRES_PASSWORD: password
     restart: unless-stopped

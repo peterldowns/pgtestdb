@@ -9,20 +9,20 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
+	"github.com/peterldowns/testdb/internal/sessionlock"
 )
 
-// TODO: should these be struct members, so that there can be multiple test databases used
-// in the same package? That seems a little unnecessary... but probably good form?
 var (
 	tonce   sync.Once       //nolint:gochecknoglobals
 	tconfig *templateConfig //nolint:gochecknoglobals
 	terror  error           //nolint:gochecknoglobals
 )
 
-// templateConfig is the config for the created templateDB, which is basically
-// connection string details and then its unique hash identifier. The hash is
-// used when creating instances of the template, to make it easier to understand
-// which template they came from.
+// templateConfig is used only internally, and contains the config for the
+// created templateDB, which is basically connection string details and then its
+// unique hash identifier. The hash is used when creating instances of the
+// template, to make it easier to understand which template they came from.
 type templateConfig struct {
 	Config
 	Hash string
@@ -30,14 +30,17 @@ type templateConfig struct {
 
 // TODO: docs about wrapping this so that it's called with New(t) and nothing
 // else, using a consistent config and migrationsDir
-func New(t *testing.T, baseConfig Config, migrator Migrator) *sql.DB {
-	ctx := context.Background()
+func New(t *testing.T, dbconf Config, migrator Migrator) *sql.DB {
 	t.Helper()
+	ctx := context.Background()
 
-	tplconf := ensureTemplateDB(t, baseConfig, migrator)
+	tplconf := ensureTemplateDB(t, dbconf, migrator)
 
-	baseDB, err := baseConfig.Connect()
+	baseDB, err := dbconf.Connect()
 	if err != nil {
+		// TODO: optionally, allow for Functional Options to `t.Skip()`
+		// instead of `t.Fatal()` so that when the database is down, tests
+		// are ignored instead of failed?
 		t.Fatalf("could not connect to database: %s", err)
 		return nil // unreachable
 	}
@@ -45,13 +48,14 @@ func New(t *testing.T, baseConfig Config, migrator Migrator) *sql.DB {
 		_ = baseDB.Close()
 	})
 
-	testConfig, err := createTestDBFromTemplateDB(baseDB, tplconf)
+	testdbconf, err := createTestDBFromTemplateDB(baseDB, tplconf)
 	if err != nil {
 		t.Fatalf("failed to create testdb: %s", err)
 		return nil // unreachable
 	}
 
-	testDB, err := testConfig.Connect()
+	t.Logf("testdbconf: %s", testdbconf.URL())
+	testDB, err := testdbconf.Connect()
 	if err != nil {
 		t.Fatalf("failed to connect to testdb: %s", err)
 		return nil // unreachable
@@ -59,7 +63,7 @@ func New(t *testing.T, baseConfig Config, migrator Migrator) *sql.DB {
 	t.Cleanup(func() {
 		// Close the testDB
 		if err := testDB.Close(); err != nil {
-			t.Fatalf("could not close test database: '%s': %s", testConfig.Database, err)
+			t.Fatalf("could not close test database: '%s': %s", testdbconf.Database, err)
 			return // uncreachable
 		}
 		// If the test failed, leave the testdb around for further investigation
@@ -67,12 +71,22 @@ func New(t *testing.T, baseConfig Config, migrator Migrator) *sql.DB {
 			return
 		}
 		// Otherwise, remove the testdb from the server
-		query := fmt.Sprintf("DROP DATABASE %s", testConfig.Database)
+		query := fmt.Sprintf("DROP DATABASE %s", testdbconf.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
-			t.Fatalf("could not drop test database '%s': %s", testConfig.Database, err)
+			t.Fatalf("could not drop test database '%s': %s", testdbconf.Database, err)
 		}
 	})
-
+	// Even if we are re-using an existing template database, we will
+	// attempt to verify that it was created successfully. This way if there
+	// was ever a mistake or problem creating the template, a test will find
+	// out at the site of `testdb.New` rather than later in the test due to
+	// unexpected content in the database.
+	//
+	// We assume that verification is >>> faster than performing the migrations,
+	// and is therefore safe to run at the beginning of each test.
+	if err := migrator.Verify(ctx, testDB); err != nil {
+		t.Fatal(fmt.Errorf("test database failed verification %s: %w", testdbconf.Database, err))
+	}
 	return testDB
 }
 
@@ -80,103 +94,86 @@ func New(t *testing.T, baseConfig Config, migrator Migrator) *sql.DB {
 // passes verification.
 func ensureTemplateDB(
 	t *testing.T,
-	baseConf Config,
+	dbconf Config,
 	migrator Migrator,
 ) templateConfig {
+	t.Helper()
+	// This setup step will run once per test binary execution. If
+	// a test database does not yet exist, it will be created.
 	tonce.Do(func() {
 		hash, err := migrator.Hash()
 		if err != nil {
 			terror = fmt.Errorf("migrator failed to calculate hash: %w", err)
 			return
 		}
-		templateConf := templateConfig{Config: baseConf, Hash: hash}
-		templateConf.User = "testuser" // tODO: extract constant for this
+		templateConf := templateConfig{Config: dbconf, Hash: hash}
+		// TODO: extract option/config for the user and password to use for
+		// the template/test databases.
+		templateConf.User = "testuser"
 		templateConf.Password = "testpassword"
 		templateConf.Database = fmt.Sprintf("testdb_tpl_%s", hash)
 
-		baseDB, err := baseConf.Connect()
+		baseDB, err := dbconf.Connect()
 		if err != nil {
 			terror = fmt.Errorf("failed to connect to database: %w", err)
 			return
 		}
 		defer baseDB.Close()
 		ctx := context.Background()
-
 		// Obtain a session-level advisory lock. The lock is released when the
-		// session is closed.
-		// TODO: why? already protected by Once? (in case another binary is
-		// running in parallel?)
-		// TDOO: use sessionlock.go helpers, base the lock ID on the template
-		// database name.
-		// TODO: also, explicitly unlock!
-		query := "SELECT pg_advisory_lock(0)"
-		if _, err := baseDB.ExecContext(ctx, query); err != nil {
-			terror = fmt.Errorf("failed to acquire advisory lock: %w", err)
-			return
-		}
-
-		var templateDBExists bool
-		query = fmt.Sprintf(
-			"SELECT EXISTS (SELECT FROM pg_database WHERE datname = '%s')",
-			templateConf.Database,
-		)
-		if err := baseDB.QueryRowContext(ctx, query).Scan(&templateDBExists); err != nil {
-			terror = fmt.Errorf("failed to check if templatedb already exists: %w", err)
-			return
-		}
-
-		var templateDB *sql.DB
-		if templateDBExists {
-			templateDB, err = templateConf.Connect()
-			if err != nil {
-				terror = fmt.Errorf("failed to connect to templatedb %s: %w", templateConf.Database, err)
-				return
+		// function scope ends. This lock synchronizes the creation of the
+		// templateDB across multiple test binaries, which each have their own
+		// instance of `tonce`. This happens when you're running tests from
+		// multiple packages in parallel.
+		terror = sessionlock.With(ctx, baseDB, "migrate", func() error {
+			var templateDBExists bool
+			query := fmt.Sprintf(
+				"SELECT EXISTS (SELECT FROM pg_database WHERE datname = '%s')",
+				templateConf.Database,
+			)
+			if err := baseDB.QueryRowContext(ctx, query).Scan(&templateDBExists); err != nil {
+				return fmt.Errorf("failed to check if templatedb already exists: %w", err)
 			}
-			defer templateDB.Close()
-		} else {
+
+			// If the templateDB already exists, exit early.
+			var templateDB *sql.DB
+			if templateDBExists {
+				return nil
+			}
 			// Remove any existing template databases.
-			// TODO: make this configurable behavior?
 			query = "UPDATE pg_database SET datistemplate=false WHERE datname LIKE 'testdb_tpl_%'"
 			if _, err := baseDB.ExecContext(ctx, query); err != nil {
-				terror = fmt.Errorf("failed to mark all existing template dbs for deletion: %w", err)
-				return
+				return fmt.Errorf("failed to mark all existing template dbs for deletion: %w", err)
 			}
 			query = "SELECT datname FROM pg_database WHERE datname LIKE 'testdb_tpl_%' OR datname LIKE 'testdb_test_%'"
 			rows, err := baseDB.QueryContext(ctx, query)
 			if err != nil {
-				terror = fmt.Errorf("failed to fetch database names for deletion: %w", err)
-				return
+				return fmt.Errorf("failed to fetch database names for deletion: %w", err)
 			}
 			defer rows.Close()
 			for rows.Next() {
 				var name string
 				if err := rows.Scan(&name); err != nil {
-					terror = fmt.Errorf("failed to read database name from row: %w", err)
-					return
+					return fmt.Errorf("failed to read database name from row: %w", err)
 				}
 				query = fmt.Sprintf("DROP DATABASE %s", name)
 				if _, err := baseDB.ExecContext(ctx, query); err != nil {
-					terror = fmt.Errorf("failed to drop database %s: %w", name, err)
-					return
+					return fmt.Errorf("failed to drop database %s: %w", name, err)
 				}
 			}
 
-			// Create the test user/role with the appropriate permissions
-			// TODO: allow configuring these permissions?
 			var roleExists bool
 			query = fmt.Sprintf(
 				"SELECT EXISTS (SELECT from pg_catalog.pg_roles WHERE rolname = '%s')",
 				templateConf.User,
 			)
 			if err := baseDB.QueryRowContext(ctx, query).Scan(&roleExists); err != nil {
-				terror = fmt.Errorf("failed to detect if role %s exists: %w", templateConf.User, err)
-				return
+				return fmt.Errorf("failed to detect if role %s exists: %w", templateConf.User, err)
 			}
 			if !roleExists {
 				query = fmt.Sprintf("CREATE ROLE %s", templateConf.User)
 				if _, err := baseDB.ExecContext(ctx, query); err != nil {
-					terror = fmt.Errorf("failed to create role %s: %w", templateConf.User, err)
-					return
+					return fmt.Errorf("failed to create role %s: %w", templateConf.User, err)
 				}
 				query = fmt.Sprintf(
 					"ALTER ROLE %s WITH LOGIN PASSWORD '%s' NOSUPERUSER NOCREATEDB NOCREATEROLE",
@@ -184,8 +181,7 @@ func ensureTemplateDB(
 					templateConf.Password,
 				)
 				if _, err := baseDB.ExecContext(ctx, query); err != nil {
-					terror = fmt.Errorf("failed to alter role and set password for %s: %w", templateConf.User, err)
-					return
+					return fmt.Errorf("failed to alter role and set password for %s: %w", templateConf.User, err)
 				}
 			}
 
@@ -193,19 +189,12 @@ func ensureTemplateDB(
 			// TODO: explore using ? and query params instead of %s.
 			query = fmt.Sprintf("CREATE DATABASE %s OWNER %s", templateConf.Database, templateConf.User)
 			if _, err := baseDB.ExecContext(ctx, query); err != nil {
-				terror = fmt.Errorf("failed to create testdb %s: %w", templateConf.Database, err)
-				return
+				return fmt.Errorf("failed to create testdb %s: %w", templateConf.Database, err)
 			}
 
-			// TODO: ability to run custom configuration code at this point in the
-			// testdb setup?
-			// - Fivetran role
-			// - Extensions (trigram, pgcrypto)
-			// - CREATEDB role
 			templateDB, err = templateConf.Connect()
 			if err != nil {
-				terror = fmt.Errorf("failed to connect to templatedb %s: %w", templateConf.Database, err)
-				return
+				return fmt.Errorf("failed to connect to templatedb %s: %w", templateConf.Database, err)
 			}
 			defer templateDB.Close()
 
@@ -219,52 +208,41 @@ func ensureTemplateDB(
 				fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO %s", templateConf.User),
 			} {
 				if _, err := templateDB.ExecContext(ctx, query); err != nil {
-					terror = fmt.Errorf(
+					return fmt.Errorf(
 						"failed to grant privileges on testdb %s to role %s: %w",
 						templateConf.Database,
 						templateConf.User,
 						err,
 					)
-					return
 				}
+			}
+
+			if err := migrator.Prepare(ctx, templateDB); err != nil {
+				return fmt.Errorf("failed to prepare templatedb %s: %w", templateConf.Database, err)
 			}
 
 			// Apply migrations one time, when creating the template database.
 			// If this fails, keep the template database around so that the
 			// developer can connect to it and investigate the failure (maybe
 			// useful depending on the migration strategy).
-			err = migrator.Migrate(ctx, templateDB)
-			if err != nil {
-				terror = fmt.Errorf("failed to migrated templatedb %s: %w", templateConf.Database, err)
-				return
+			if err := migrator.Migrate(ctx, templateDB); err != nil {
+				return fmt.Errorf("failed to migrated templatedb %s: %w", templateConf.Database, err)
 			}
 
-			// TODO: add logging for each of these queries
 			query = fmt.Sprintf("UPDATE pg_database SET datistemplate=true WHERE datname='%s'", templateConf.Database)
 			if _, err := baseDB.ExecContext(ctx, query); err != nil {
-				terror = fmt.Errorf("failed to mark testdb %s as template: %w", templateConf.Database, err)
-				return
+				return fmt.Errorf("failed to mark testdb %s as template: %w", templateConf.Database, err)
 			}
-		}
+			return nil
+		})
 
-		// Even if we are re-using an existing template database, we will
-		// attempt to verify that it was created successfully. This way if there
-		// was ever a mistake or problem creating the template, a test will find
-		// out at the site of `testdb.New` rather than later in the test due to
-		// unexpected content in the database.
-		//
-		// We assume that verification is faster than performing the migrations,
-		// and will not modify the template database.
-		if err := migrator.Verify(ctx, templateDB); err != nil {
-			terror = fmt.Errorf("failed to verify templatedb %s: %w", templateConf.Database, err)
-			return
+		// If there was any error, make sure the config is unusable. Otherwise,
+		// tconfig should point to a valid templateDB!
+		if terror != nil {
+			tconfig = nil
+		} else {
+			tconfig = &templateConf
 		}
-
-		// If execution reaches this point, we have a template database that has
-		// passed the verification step, so it should be able to be used in a
-		// test.
-		tconfig = &templateConf
-		terror = nil
 	})
 
 	// If there were any errors creating the template database, log them and

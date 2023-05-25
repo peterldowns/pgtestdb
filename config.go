@@ -3,8 +3,11 @@ package testdb
 import (
 	"database/sql"
 	"fmt"
+
+	_ "github.com/jackc/pgx/v5/stdlib" // pgx ddriver necessary for connecting
 )
 
+// Config contains the details needed to connect to a postgres server/database.
 type Config struct {
 	Host     string
 	Port     string
@@ -22,7 +25,7 @@ func (c Config) URL() string {
 }
 
 func (c Config) Connect() (*sql.DB, error) {
-	db, err := sql.Open("postgres", c.URL())
+	db, err := sql.Open("pgx", c.URL())
 	if err != nil {
 		return nil, err
 	}

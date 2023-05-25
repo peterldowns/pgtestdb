@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for postgres
 )
 
 // WithDB is a helper for writing postgres-backed tests. It will:
@@ -22,7 +23,7 @@ import (
 // For a package that will automatically create a database with migrations
 // applied, check out `pkg/testdb`.
 func WithDB(ctx context.Context, cb func(*sql.DB)) error {
-	db, err := sql.Open("postgres", connectionString("postgres"))
+	db, err := sql.Open("pgx", connectionString("postgres"))
 	if err != nil {
 		return err
 	}
@@ -33,7 +34,7 @@ func WithDB(ctx context.Context, cb func(*sql.DB)) error {
 	if _, err := db.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("could not create new database template: %w", err)
 	}
-	testDB, err := sql.Open("postgres", connectionString(testDBName))
+	testDB, err := sql.Open("pgx", connectionString(testDBName))
 	if err != nil {
 		return err
 	}
