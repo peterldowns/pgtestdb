@@ -20,7 +20,7 @@ of migration files as described [in the Atlas documentation for "Versioned Workf
 You can use it like this:
 
 ```go
-func TestWithchemaMigrator(t *testing.T) {
+func TestWithSchemaMigrator(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -51,7 +51,7 @@ where `schemaFilePath` is the path to a `.hcl` schema file as described [in the 
 
 You can use it like this:
 ```go
-func TestWithchemaMigrator(t *testing.T) {
+func TestWithSchemaMigrator(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 

@@ -101,3 +101,20 @@ func TestDbmateMigratorWithFS(t *testing.T) {
 	assert.Nil(t, err)
 	check.Equal(t, "dummy", funcResult)
 }
+
+func TestDbmateMigratorWithDefaults(t *testing.T) {
+	t.Parallel()
+
+	// If you're using the default settings, you don't need to pass any options.
+	// This will read migrations from disk, from the folder "./db/migrations",
+	// and store the results in the "schema_migrations" table.
+	m := dbmatemigrator.New()
+	db := testdb.New(t, testdb.Config{
+		Host:     "localhost",
+		User:     "postgres",
+		Password: "password",
+		Port:     "5433",
+		Options:  "sslmode=disable",
+	}, m)
+	assert.NotEqual(t, nil, db)
+}
