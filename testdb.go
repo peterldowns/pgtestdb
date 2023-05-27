@@ -2,13 +2,13 @@ package testdb
 
 import (
 	"context"
+	"crypto/md5"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
-
-	"github.com/google/uuid"
 
 	"github.com/peterldowns/testdb/internal/sessionlock"
 )
@@ -103,7 +103,7 @@ func ensureTemplateDB(
 	tonce.Do(func() {
 		hash, err := migrator.Hash()
 		if err != nil {
-			terror = fmt.Errorf("migrator failed to calculate hash: %w", err)
+			terror = fmt.Errorf("migrator.Hash() failed: %w", err)
 			return
 		}
 		templateConf := templateConfig{Config: dbconf, Hash: hash}
@@ -140,12 +140,13 @@ func ensureTemplateDB(
 			if templateDBExists {
 				return nil
 			}
+			// TODO: maybe this shouldn't happen?
 			// Remove any existing template databases.
 			query = "UPDATE pg_database SET datistemplate=false WHERE datname LIKE 'testdb_tpl_%'"
 			if _, err := baseDB.ExecContext(ctx, query); err != nil {
 				return fmt.Errorf("failed to mark all existing template dbs for deletion: %w", err)
 			}
-			query = "SELECT datname FROM pg_database WHERE datname LIKE 'testdb_tpl_%' OR datname LIKE 'testdb_test_%'"
+			query = "SELECT datname FROM pg_database WHERE datname LIKE 'testdb_tpl_%'"
 			rows, err := baseDB.QueryContext(ctx, query)
 			if err != nil {
 				return fmt.Errorf("failed to fetch database names for deletion: %w", err)
@@ -218,7 +219,7 @@ func ensureTemplateDB(
 			}
 
 			if err := migrator.Prepare(ctx, templateDB, templateConf.Config); err != nil {
-				return fmt.Errorf("failed to prepare templatedb %s: %w", templateConf.Database, err)
+				return fmt.Errorf("failed to prepare %s: %w", templateConf.Database, err)
 			}
 
 			// Apply migrations one time, when creating the template database.
@@ -226,7 +227,7 @@ func ensureTemplateDB(
 			// developer can connect to it and investigate the failure (maybe
 			// useful depending on the migration strategy).
 			if err := migrator.Migrate(ctx, templateDB, templateConf.Config); err != nil {
-				return fmt.Errorf("failed to migrated templatedb %s: %w", templateConf.Database, err)
+				return fmt.Errorf("failed to migrate %s: %w", templateConf.Database, err)
 			}
 
 			query = fmt.Sprintf("UPDATE pg_database SET datistemplate=true WHERE datname='%s'", templateConf.Database)
@@ -248,7 +249,7 @@ func ensureTemplateDB(
 	// If there were any errors creating the template database, log them and
 	// immediately fail the test.
 	if terror != nil {
-		t.Errorf("failed to provision test database template: %s", terror)
+		t.Errorf("failed to provision template: %s", terror)
 	}
 	if t.Failed() {
 		t.FailNow()
@@ -261,9 +262,9 @@ func ensureTemplateDB(
 func createTestDBFromTemplateDB(baseDB *sql.DB, templateConf templateConfig) (*Config, error) {
 	testConf := templateConf.Config
 	testConf.Database = fmt.Sprintf(
-		"testdb_test_%s_%s",
+		"testdb_tpl_%s_inst_%s",
 		templateConf.Hash,
-		strings.ReplaceAll(uuid.New().String(), "-", ""),
+		randomID(""),
 	)
 
 	// Create a test database from the template database. Using a template is
@@ -280,4 +281,14 @@ func createTestDBFromTemplateDB(baseDB *sql.DB, templateConf templateConfig) (*C
 	}
 
 	return &testConf, nil
+}
+
+func randomID(prefix string) string {
+	bytes := make([]byte, 32)
+	hash := md5.New()
+	_, err := rand.Read(bytes)
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(hash.Sum(bytes)))
 }

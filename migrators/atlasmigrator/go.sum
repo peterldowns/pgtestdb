@@ -10,8 +10,8 @@ github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a h1:bbPeKD0xmW/
 github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a/go.mod h1:5TJZWKEWniPve33vlWYSoGYefn3gLQRzjfDlhSJ9ZKM=
 github.com/jackc/pgx/v5 v5.3.1 h1:Fcr8QJ1ZeLi5zsPZqQeUZhNhxfkkKBOgJuYkJHoBOtU=
 github.com/jackc/pgx/v5 v5.3.1/go.mod h1:t3JDKnCBlYIc0ewLF0Q7B8MXmoIaBOZj/ic7iHozM/8=
-github.com/peterldowns/testdb v0.0.0-20230526135255-41171ad472d2 h1:oOMhrHAFX08hgFIJVNubAo4/GiArDRC+RHVOs+KA9jw=
-github.com/peterldowns/testdb v0.0.0-20230526135255-41171ad472d2/go.mod h1:8vpd8yoXLRIjS9RGcgPG/+8728ahtsDA7JNWpd8Pv1E=
+github.com/peterldowns/testdb v0.0.0-20230527185043-3c66a9fe6c9b h1:BbamQlAVLaZuiFHnSxgcqbcTAyfOd23qa90kKW2k0ns=
+github.com/peterldowns/testdb v0.0.0-20230527185043-3c66a9fe6c9b/go.mod h1:bM6C+MZ5Pt1nL2MrBpLE7ggswIUhIbbSKOrgbBo23T8=
 github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156 h1:/KOn5XBKXOONFkM3uYdbTXFGMEXXYunFe0AYDWdces8=
 github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156/go.mod h1:J4sm75UEzbfBIcq0zbrshWWjsJQiJ5RrhTPYKVY2Ww8=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
@@ -19,7 +19,7 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
+github.com/stretchr/testify v1.8.2 h1:+h33VjcLVPDHtOdpUCuF+7gSuG3yGIftsP1YvFihtJ8=
 golang.org/x/crypto v0.6.0 h1:qfktjS5LUO+fFKeJXZ+ikTRijMmljikvG68fpMMruSc=
 golang.org/x/crypto v0.6.0/go.mod h1:OFC/31mSvZgRz0V1QTNCzfAI1aIRzbiufJtkMIlEp58=
 golang.org/x/exp v0.0.0-20230519143937-03e91628a987 h1:3xJIFvzUFbu4ls0BTBYcgbCGhA63eAOEMxIHugyXJqA=

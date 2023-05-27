@@ -2,11 +2,12 @@ package withdb
 
 import (
 	"context"
+	"crypto/md5"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
-	"strings"
 
-	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for postgres
 )
 
@@ -29,7 +30,7 @@ func WithDB(ctx context.Context, cb func(*sql.DB)) error {
 	}
 	defer db.Close()
 
-	testDBName := "test_" + strings.ReplaceAll(uuid.New().String(), "-", "_")
+	testDBName := randomID("test_")
 	query := fmt.Sprintf("CREATE DATABASE %s;", testDBName)
 	if _, err := db.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("could not create new database template: %w", err)
@@ -50,6 +51,16 @@ func WithDB(ctx context.Context, cb func(*sql.DB)) error {
 
 	cb(testDB)
 	return nil
+}
+
+func randomID(prefix string) string {
+	bytes := make([]byte, 32)
+	hash := md5.New()
+	_, err := rand.Read(bytes)
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(hash.Sum(bytes)))
 }
 
 func connectionString(dbname string) string {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/peterldowns/testdb"
 	"github.com/peterldowns/testdb/migrators/atlasmigrator"
