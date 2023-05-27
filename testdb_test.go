@@ -20,16 +20,16 @@ func (*migrator) Hash() (string, error) {
 	return "dummyhash10", nil
 }
 
-func (*migrator) Prepare(ctx context.Context, db *sql.DB) error {
-	_, err := db.ExecContext(ctx, `
+func (*migrator) Prepare(ctx context.Context, templatedb *sql.DB, _ testdb.Config) error {
+	_, err := templatedb.ExecContext(ctx, `
 CREATE EXTENSION pgcrypto;
 CREATE EXTENSION pg_trgm;
 	`)
 	return err
 }
 
-func (*migrator) Migrate(ctx context.Context, db *sql.DB) error {
-	_, err := db.ExecContext(ctx, `
+func (*migrator) Migrate(ctx context.Context, templatedb *sql.DB, _ testdb.Config) error {
+	_, err := templatedb.ExecContext(ctx, `
 -- as if this were a real migrations tool that kept track of migrations
 CREATE TABLE migrations (
 	id TEXT PRIMARY KEY,
@@ -51,7 +51,7 @@ VALUES ('cats_0001');
 	return err
 }
 
-func (*migrator) Verify(ctx context.Context, db *sql.DB) error {
+func (*migrator) Verify(ctx context.Context, db *sql.DB, _ testdb.Config) error {
 	rows, err := db.QueryContext(ctx, "SELECT id FROM migrations ORDER BY id ASC")
 	if err != nil {
 		return err

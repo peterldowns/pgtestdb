@@ -15,6 +15,14 @@ default:
 test *args='./...':
   go test "$@"
 
+# run the tests for all subpackages
+test-all:
+  #!/usr/bin/env bash
+  go test ./...
+  for migrator in ./migrators/*; do
+    go test $migrator/...
+  done
+
 # lint the entire codebase
 lint *args:
   golangci-lint run --fix --config .golangci.yaml "$@"

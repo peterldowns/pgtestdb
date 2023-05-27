@@ -30,13 +30,13 @@ type templateConfig struct {
 
 // TODO: docs about wrapping this so that it's called with New(t) and nothing
 // else, using a consistent config and migrationsDir
-func New(t *testing.T, dbconf Config, migrator Migrator) *sql.DB {
+func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
 
-	tplconf := ensureTemplateDB(t, dbconf, migrator)
+	templateConf := ensureTemplateDB(t, conf, migrator)
 
-	baseDB, err := dbconf.Connect()
+	baseDB, err := conf.connect()
 	if err != nil {
 		// TODO: optionally, allow for Functional Options to `t.Skip()`
 		// instead of `t.Fatal()` so that when the database is down, tests
@@ -48,22 +48,22 @@ func New(t *testing.T, dbconf Config, migrator Migrator) *sql.DB {
 		_ = baseDB.Close()
 	})
 
-	testdbconf, err := createTestDBFromTemplateDB(baseDB, tplconf)
+	instanceConf, err := createTestDBFromTemplateDB(baseDB, templateConf)
 	if err != nil {
 		t.Fatalf("failed to create testdb: %s", err)
 		return nil // unreachable
 	}
 
-	t.Logf("testdbconf: %s", testdbconf.URL())
-	testDB, err := testdbconf.Connect()
+	t.Logf("testdbconf: %s", instanceConf.URL())
+	instanceDB, err := instanceConf.connect()
 	if err != nil {
 		t.Fatalf("failed to connect to testdb: %s", err)
 		return nil // unreachable
 	}
 	t.Cleanup(func() {
 		// Close the testDB
-		if err := testDB.Close(); err != nil {
-			t.Fatalf("could not close test database: '%s': %s", testdbconf.Database, err)
+		if err := instanceDB.Close(); err != nil {
+			t.Fatalf("could not close test database: '%s': %s", instanceConf.Database, err)
 			return // uncreachable
 		}
 		// If the test failed, leave the testdb around for further investigation
@@ -71,9 +71,9 @@ func New(t *testing.T, dbconf Config, migrator Migrator) *sql.DB {
 			return
 		}
 		// Otherwise, remove the testdb from the server
-		query := fmt.Sprintf("DROP DATABASE %s", testdbconf.Database)
+		query := fmt.Sprintf("DROP DATABASE %s", instanceConf.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
-			t.Fatalf("could not drop test database '%s': %s", testdbconf.Database, err)
+			t.Fatalf("could not drop test database '%s': %s", instanceConf.Database, err)
 		}
 	})
 	// Even if we are re-using an existing template database, we will
@@ -84,10 +84,10 @@ func New(t *testing.T, dbconf Config, migrator Migrator) *sql.DB {
 	//
 	// We assume that verification is >>> faster than performing the migrations,
 	// and is therefore safe to run at the beginning of each test.
-	if err := migrator.Verify(ctx, testDB); err != nil {
-		t.Fatal(fmt.Errorf("test database failed verification %s: %w", testdbconf.Database, err))
+	if err := migrator.Verify(ctx, instanceDB, *instanceConf); err != nil {
+		t.Fatal(fmt.Errorf("test database failed verification %s: %w", instanceConf.Database, err))
 	}
-	return testDB
+	return instanceDB
 }
 
 // ensureTemplateDB gets-or-creates a template database, and makes sure that it
@@ -113,7 +113,7 @@ func ensureTemplateDB(
 		templateConf.Password = "testpassword"
 		templateConf.Database = fmt.Sprintf("testdb_tpl_%s", hash)
 
-		baseDB, err := dbconf.Connect()
+		baseDB, err := dbconf.connect()
 		if err != nil {
 			terror = fmt.Errorf("failed to connect to database: %w", err)
 			return
@@ -192,7 +192,7 @@ func ensureTemplateDB(
 				return fmt.Errorf("failed to create testdb %s: %w", templateConf.Database, err)
 			}
 
-			templateDB, err = templateConf.Connect()
+			templateDB, err = templateConf.connect()
 			if err != nil {
 				return fmt.Errorf("failed to connect to templatedb %s: %w", templateConf.Database, err)
 			}
@@ -217,7 +217,7 @@ func ensureTemplateDB(
 				}
 			}
 
-			if err := migrator.Prepare(ctx, templateDB); err != nil {
+			if err := migrator.Prepare(ctx, templateDB, templateConf.Config); err != nil {
 				return fmt.Errorf("failed to prepare templatedb %s: %w", templateConf.Database, err)
 			}
 
@@ -225,7 +225,7 @@ func ensureTemplateDB(
 			// If this fails, keep the template database around so that the
 			// developer can connect to it and investigate the failure (maybe
 			// useful depending on the migration strategy).
-			if err := migrator.Migrate(ctx, templateDB); err != nil {
+			if err := migrator.Migrate(ctx, templateDB, templateConf.Config); err != nil {
 				return fmt.Errorf("failed to migrated templatedb %s: %w", templateConf.Database, err)
 			}
 

@@ -24,7 +24,7 @@ func (c Config) URL() string {
 	)
 }
 
-func (c Config) Connect() (*sql.DB, error) {
+func (c Config) connect() (*sql.DB, error) {
 	db, err := sql.Open("pgx", c.URL())
 	if err != nil {
 		return nil, err
