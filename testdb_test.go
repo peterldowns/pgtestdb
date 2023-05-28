@@ -14,10 +14,16 @@ import (
 
 // migrator is an implementation of the Migrator interface, and will
 // create a `migrations` table and a `cats` table, with some data.
-type migrator struct{}
+type migrator struct {
+	hash           string
+	extraMigration string
+}
 
-func (*migrator) Hash() (string, error) {
-	return "dummyhash10", nil
+func (m *migrator) Hash() (string, error) {
+	if m.hash == "" {
+		return "defaultHash", nil
+	}
+	return m.hash, nil
 }
 
 func (*migrator) Prepare(ctx context.Context, templatedb *sql.DB, _ testdb.Config) error {
@@ -28,7 +34,7 @@ CREATE EXTENSION pg_trgm;
 	return err
 }
 
-func (*migrator) Migrate(ctx context.Context, templatedb *sql.DB, _ testdb.Config) error {
+func (m *migrator) Migrate(ctx context.Context, templatedb *sql.DB, _ testdb.Config) error {
 	_, err := templatedb.ExecContext(ctx, `
 -- as if this were a real migrations tool that kept track of migrations
 CREATE TABLE migrations (
@@ -48,6 +54,13 @@ VALUES ('daisy'), ('sunny');
 INSERT INTO migrations (id)
 VALUES ('cats_0001');
 `)
+	if err != nil {
+		return err
+	}
+	if m.extraMigration == "" {
+		return nil
+	}
+	_, err = templatedb.ExecContext(ctx, m.extraMigration)
 	return err
 }
 
@@ -174,4 +187,57 @@ func TestAQuery(t *testing.T) {
 	err := db.QueryRowContext(ctx, "SELECT 'hello world'").Scan(&result)
 	check.Nil(t, err)
 	check.Equal(t, "hello world", result)
+}
+
+func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	dbconf := testdb.Config{
+		User:     "postgres",
+		Password: "password",
+		Host:     "localhost",
+		Port:     "5433",
+		Options:  "sslmode=disable",
+	}
+	// These two migrators have different hashes and they create databases with different schemas.
+	// The xxx schema contains a table xxx, the yyy schema contains a table yyy.
+	xxxm := &migrator{
+		hash:           "xxx",
+		extraMigration: "CREATE TABLE xxx (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY);",
+	}
+	yyym := &migrator{
+		hash:           "yyy",
+		extraMigration: "CREATE TABLE yyy (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY);",
+	}
+	// These two migrators should have different hashes.
+	yyyh, err := yyym.Hash()
+	assert.Nil(t, err)
+	xxxh, err := xxxm.Hash()
+	assert.Nil(t, err)
+	check.Equal(t, "xxx", xxxh)
+	check.Equal(t, "yyy", yyyh)
+	assert.NotEqual(t, yyyh, xxxh)
+
+	// Create two databases. They _should_ have different schemas.
+	xxxdb := testdb.New(t, dbconf, xxxm)
+	yyydb := testdb.New(t, dbconf, yyym)
+
+	// But, the bug is that due to use of t.Once(), they will actually have the
+	// same schema.  One of these two statements will always fail! Due to
+	// ordering in this test, the xxx database gets created first, and the yyy
+	// database will re-use that template (mistakenly!).
+	//
+	// In the case where we're writing a package and have multiple tests in
+	// parallel, the order is dependent on whichever test runs first, which is
+	// really annoying to debug.
+	var countXXX int
+	err = xxxdb.QueryRowContext(ctx, "select count(*) from xxx;").Scan(&countXXX)
+	if check.Nil(t, err) {
+		check.Equal(t, 0, countXXX)
+	}
+	var countYYY int
+	err = yyydb.QueryRowContext(ctx, "select count(*) from yyy;").Scan(&countYYY)
+	if check.Nil(t, err) {
+		check.Equal(t, 0, countXXX)
+	}
 }

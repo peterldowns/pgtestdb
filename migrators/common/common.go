@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
 	"io/fs"
 	"os"
@@ -112,5 +113,44 @@ func Execute(ctx context.Context, stdin io.Reader, program string, args ...strin
 	return strings.TrimSuffix(stdout.String(), "\n"), nil
 }
 
-// TODO: helper for updating the hash based on the struct fields / settings of
-// a migrator.
+// TODO: docs
+func NewRecursiveHash(fields ...HashField) (RecursiveHash, error) {
+	hash := RecursiveHash{md5.New()}
+	err := hash.AddFields(fields...)
+	return hash, err
+}
+
+type RecursiveHash struct {
+	hash.Hash
+}
+
+func (h RecursiveHash) Add(bytes []byte) error {
+	_, err := fmt.Fprintf(h, "%x=%x\n", h.Sum(nil), md5.Sum(bytes))
+	return err
+}
+
+func (h RecursiveHash) AddField(key string, value any) error {
+	return h.Add([]byte(fmt.Sprintf("%s=%v", key, value)))
+}
+
+func (h RecursiveHash) AddFields(fields ...HashField) error {
+	for _, field := range fields {
+		if err := h.AddField(field.Key, field.Value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h RecursiveHash) String() string {
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func Field(key string, value any) HashField {
+	return HashField{Key: key, Value: value}
+}
+
+type HashField struct {
+	Key   string
+	Value any
+}

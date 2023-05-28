@@ -13,15 +13,12 @@ default:
 
 # run the test suite
 test *args='./...':
-  go test "$@"
+  go test -race "$@"
 
 # run the tests for all subpackages
 test-all:
   #!/usr/bin/env bash
-  go test ./...
-  for migrator in ./migrators/*; do
-    go test $migrator/...
-  done
+  go test -race ./... ./migrators/**
 
 # lint the entire codebase
 lint *args:

@@ -47,3 +47,6 @@ dist/
 build/
 lib/
 *.a
+
+# stupid golang bullshit
+go.work.sum

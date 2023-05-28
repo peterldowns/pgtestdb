@@ -13,29 +13,18 @@ import (
 	"github.com/peterldowns/testdb/internal/sessionlock"
 )
 
-var (
-	tonce   sync.Once       //nolint:gochecknoglobals
-	tconfig *templateConfig //nolint:gochecknoglobals
-	terror  error           //nolint:gochecknoglobals
+const (
+	// TestUser is the username for connecting to each test database.
+	TestUser = "testdbuser"
+	// TestPassword is the password for connecting to each test database.
+	TestPassword = "password"
 )
-
-// templateConfig is used only internally, and contains the config for the
-// created templateDB, which is basically connection string details and then its
-// unique hash identifier. The hash is used when creating instances of the
-// template, to make it easier to understand which template they came from.
-type templateConfig struct {
-	Config
-	Hash string
-}
 
 // TODO: docs about wrapping this so that it's called with New(t) and nothing
 // else, using a consistent config and migrationsDir
 func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
-
-	templateConf := ensureTemplateDB(t, conf, migrator)
-
 	baseDB, err := conf.connect()
 	if err != nil {
 		// TODO: optionally, allow for Functional Options to `t.Skip()`
@@ -44,26 +33,32 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 		t.Fatalf("could not connect to database: %s", err)
 		return nil // unreachable
 	}
-	t.Cleanup(func() {
-		_ = baseDB.Close()
-	})
 
-	instanceConf, err := createTestDBFromTemplateDB(baseDB, templateConf)
+	if err := ensureUser(ctx, baseDB); err != nil {
+		t.Fatalf("could not create testdb user: %s", err)
+	}
+
+	template, err := getOrCreateTemplate(ctx, baseDB, conf, migrator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	instance, err := createInstance(ctx, baseDB, *template)
 	if err != nil {
 		t.Fatalf("failed to create testdb: %s", err)
 		return nil // unreachable
 	}
+	t.Logf("testdbconf: %s", instance.URL())
 
-	t.Logf("testdbconf: %s", instanceConf.URL())
-	instanceDB, err := instanceConf.connect()
+	db, err := instance.connect()
 	if err != nil {
 		t.Fatalf("failed to connect to testdb: %s", err)
 		return nil // unreachable
 	}
 	t.Cleanup(func() {
 		// Close the testDB
-		if err := instanceDB.Close(); err != nil {
-			t.Fatalf("could not close test database: '%s': %s", instanceConf.Database, err)
+		if err := db.Close(); err != nil {
+			t.Fatalf("could not close test database: '%s': %s", instance.Database, err)
 			return // uncreachable
 		}
 		// If the test failed, leave the testdb around for further investigation
@@ -71,11 +66,12 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 			return
 		}
 		// Otherwise, remove the testdb from the server
-		query := fmt.Sprintf("DROP DATABASE %s", instanceConf.Database)
+		query := fmt.Sprintf("DROP DATABASE %s", instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
-			t.Fatalf("could not drop test database '%s': %s", instanceConf.Database, err)
+			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
 		}
 	})
+
 	// Even if we are re-using an existing template database, we will
 	// attempt to verify that it was created successfully. This way if there
 	// was ever a mistake or problem creating the template, a test will find
@@ -84,192 +80,231 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	//
 	// We assume that verification is >>> faster than performing the migrations,
 	// and is therefore safe to run at the beginning of each test.
-	if err := migrator.Verify(ctx, instanceDB, *instanceConf); err != nil {
-		t.Fatal(fmt.Errorf("test database failed verification %s: %w", instanceConf.Database, err))
+	if err := migrator.Verify(ctx, db, *instance); err != nil {
+		t.Fatal(fmt.Errorf("test database failed verification %s: %w", instance.Database, err))
 	}
-	return instanceDB
+
+	return db
 }
 
-// ensureTemplateDB gets-or-creates a template database, and makes sure that it
-// passes verification.
-func ensureTemplateDB(
-	t *testing.T,
-	dbconf Config,
-	migrator Migrator,
-) templateConfig {
-	t.Helper()
-	// This setup step will run once per test binary execution. If
-	// a test database does not yet exist, it will be created.
-	tonce.Do(func() {
-		hash, err := migrator.Hash()
-		if err != nil {
-			terror = fmt.Errorf("migrator.Hash() failed: %w", err)
-			return
-		}
-		templateConf := templateConfig{Config: dbconf, Hash: hash}
-		// TODO: extract option/config for the user and password to use for
-		// the template/test databases.
-		templateConf.User = "testuser"
-		templateConf.Password = "testpassword"
-		templateConf.Database = fmt.Sprintf("testdb_tpl_%s", hash)
+// userOnce is used to guarantee that we only get-or-create the testdb user
+// at most once per program.
+var userOnce sync.Once //nolint:gochecknoglobals
 
-		baseDB, err := dbconf.connect()
-		if err != nil {
-			terror = fmt.Errorf("failed to connect to database: %w", err)
-			return
-		}
-		defer baseDB.Close()
-		ctx := context.Background()
-		// Obtain a session-level advisory lock. The lock is released when the
-		// function scope ends. This lock synchronizes the creation of the
-		// templateDB across multiple test binaries, which each have their own
-		// instance of `tonce`. This happens when you're running tests from
-		// multiple packages in parallel.
-		terror = sessionlock.With(ctx, baseDB, "migrate", func() error {
-			// If the templateDB already exists, and is marked as a template, it means we
-			// migrated successfully and we can exit right now.
-			var templateDBExists bool
-			query := fmt.Sprintf(
-				"SELECT EXISTS (SELECT FROM pg_database WHERE datname = '%s' AND datistemplate = 't')",
-				templateConf.Database,
-			)
-			if err := baseDB.QueryRowContext(ctx, query).Scan(&templateDBExists); err != nil {
-				return fmt.Errorf("failed to check if templatedb already exists: %w", err)
-			}
-			var templateDB *sql.DB
-			if templateDBExists {
-				return nil
-			}
-
-			// If it exists and isn't marked as a template, we failed to migrate it properly, so we
-			// should remove it entirely and then recreate it.
-			query = fmt.Sprintf("DROP DATABASE IF EXISTS %s", templateConf.Database)
-			if _, err := baseDB.ExecContext(ctx, query); err != nil {
-				return fmt.Errorf("failed to drop broken template database %s: %w", templateConf.Database, err)
-			}
-
+func ensureUser(
+	ctx context.Context,
+	baseDB *sql.DB,
+) error {
+	// Only attempt to create the test user once per program. If it fails, it fails,
+	// and testdb.New() will return an error.
+	// TODO: store the error result in a concurrency-safe way and return that each time.
+	var userErr error
+	userOnce.Do(func() {
+		userErr = sessionlock.With(ctx, baseDB, "testdb-user", func() error {
 			// Get-or-create a role/user dedicated to connecting to these test databases.
 			var roleExists bool
-			query = fmt.Sprintf(
-				"SELECT EXISTS (SELECT from pg_catalog.pg_roles WHERE rolname = '%s')",
-				templateConf.User,
-			)
-			if err := baseDB.QueryRowContext(ctx, query).Scan(&roleExists); err != nil {
-				return fmt.Errorf("failed to detect if role %s exists: %w", templateConf.User, err)
+			query := "SELECT EXISTS (SELECT from pg_catalog.pg_roles WHERE rolname = $1)"
+			if err := baseDB.QueryRowContext(ctx, query, TestUser).Scan(&roleExists); err != nil {
+				return fmt.Errorf("failed to detect if role %s exists: %w", TestUser, err)
+			}
+			if roleExists {
+				return nil
 			}
 			if !roleExists {
-				query = fmt.Sprintf("CREATE ROLE %s", templateConf.User)
+				query = fmt.Sprintf(`CREATE ROLE "%s"`, TestUser)
 				if _, err := baseDB.ExecContext(ctx, query); err != nil {
-					return fmt.Errorf("failed to create role %s: %w", templateConf.User, err)
+					return fmt.Errorf("failed to create role %s: %w", TestUser, err)
 				}
 				query = fmt.Sprintf(
-					"ALTER ROLE %s WITH LOGIN PASSWORD '%s' NOSUPERUSER NOCREATEDB NOCREATEROLE",
-					templateConf.User,
-					templateConf.Password,
+					`ALTER ROLE "%s" WITH LOGIN PASSWORD '%s' NOSUPERUSER NOCREATEDB NOCREATEROLE`,
+					TestUser,
+					TestPassword,
 				)
 				if _, err := baseDB.ExecContext(ctx, query); err != nil {
-					return fmt.Errorf("failed to alter role and set password for %s: %w", templateConf.User, err)
+					return fmt.Errorf("failed to alter role and set password for %s: %w", TestUser, err)
 				}
-			}
-
-			// Create the template, owned by the correct user.
-			query = fmt.Sprintf("CREATE DATABASE %s OWNER %s", templateConf.Database, templateConf.User)
-			if _, err := baseDB.ExecContext(ctx, query); err != nil {
-				return fmt.Errorf("failed to create testdb %s: %w", templateConf.Database, err)
-			}
-
-			// Connect to the template.
-			templateDB, err = templateConf.connect()
-			if err != nil {
-				return fmt.Errorf("failed to connect to templatedb %s: %w", templateConf.Database, err)
-			}
-			defer templateDB.Close()
-
-			// Grant all privileges on the template to the test user.
-			for _, query = range []string{
-				fmt.Sprintf("GRANT ALL PRIVILEGES ON DATABASE %s TO %s", templateConf.Database, templateConf.User),
-				fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO %s", templateConf.User),
-				fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO %s", templateConf.User),
-			} {
-				if _, err := templateDB.ExecContext(ctx, query); err != nil {
-					return fmt.Errorf(
-						"failed to grant privileges on testdb %s to role %s: %w",
-						templateConf.Database,
-						templateConf.User,
-						err,
-					)
-				}
-			}
-
-			// Apply the Migrator logic one time, when creating the template
-			// database.  If this fails, the template database will remain and
-			// the developer can connect to it and investigate the failure.
-			// Subsequent attempts to create the template will remove it, since
-			// it didn't get marked as complete (datistemplate=true).
-			if err := migrator.Prepare(ctx, templateDB, templateConf.Config); err != nil {
-				return fmt.Errorf("failed to prepare %s: %w", templateConf.Database, err)
-			}
-			if err := migrator.Migrate(ctx, templateDB, templateConf.Config); err != nil {
-				return fmt.Errorf("failed to migrate %s: %w", templateConf.Database, err)
-			}
-
-			// Finalize the creation of the template by marking it as a
-			// template.
-			query = fmt.Sprintf("UPDATE pg_database SET datistemplate=true WHERE datname='%s'", templateConf.Database)
-			if _, err := baseDB.ExecContext(ctx, query); err != nil {
-				return fmt.Errorf("failed to mark testdb %s as template: %w", templateConf.Database, err)
 			}
 			return nil
 		})
-
-		// If there was any error, make sure the config is unusable. Otherwise,
-		// tconfig should point to a valid templateDB!
-		if terror != nil {
-			tconfig = nil
-		} else {
-			tconfig = &templateConf
-		}
 	})
-
-	// If there were any errors creating the template database, log them and
-	// immediately fail the test.
-	if terror != nil {
-		t.Errorf("failed to provision template: %s", terror)
-	}
-	if t.Failed() {
-		t.FailNow()
-	}
-	return *tconfig
+	return userErr
 }
 
-// createTestDBFromTemplateDB creates a new postgres database from a given
-// template.
-func createTestDBFromTemplateDB(baseDB *sql.DB, templateConf templateConfig) (*Config, error) {
-	testConf := templateConf.Config
+// templateState keeps the state of a single template database, so that each
+// program only attempts to create/migrate the template database at most once.
+type templateState struct {
+	conf Config
+	hash string
+	err  error
+}
+
+var (
+	// stateLocks is a map[hash]*sync.Once, for guaranteeing that we only edit
+	// the states map at most once per program.
+	stateLocks sync.Map //nolint:gochecknoglobals
+	// states is a map[hash]templateState, for holding the state of each
+	// template database in a concurrency-safe way.
+	states sync.Map //nolint:gochecknoglobals
+)
+
+// getOrCreateTemplate will get-or-create a template database, synchronizing at the
+// golang level (with the stateLocks map, so that each template database is
+// get-or-created at most once) and at the postgres level (with advisory locks,
+// so that there are no conflicts between multiple programs trying to create
+// the template.)
+//
+// If there was a database error during template creation, the program that
+// attempted the creation will set state.error, so subsequent attempts to access
+// the template from within the same golang program will just return that error.
+//
+// This means that:
+// - migrations are only run once per template database per golang program / package under test.
+// - you don't need to manually clear out "broken" templates between test suite runs.
+func getOrCreateTemplate(
+	ctx context.Context,
+	baseDB *sql.DB,
+	dbconf Config,
+	migrator Migrator,
+) (*templateState, error) {
+	// Get the unique hash of the database.
+	hash, err := migrator.Hash()
+	if err != nil {
+		return nil, err
+	}
+	// Get-or-create a sync.Once for get-or-creating the state of
+	// the template database.
+	onceRaw, _ := stateLocks.LoadOrStore(hash, &sync.Once{})
+	once := onceRaw.(*sync.Once)
+	once.Do(func() {
+		// This function runs once per program, but only synchronizes access
+		// within a single program. When running larger test suites, each
+		// package's tests may run in parallel, which means this does not
+		// perfectly synchronize interaction with the database.
+		state := templateState{}
+		state.conf = dbconf
+		// Use the TestUser/TestPassword because we guaranteed it to exist
+		// earlier.
+		state.conf.User = TestUser
+		state.conf.Password = TestPassword
+		state.conf.Database = fmt.Sprintf("testdb_tpl_%s", hash)
+		// We synchronize the creation of the template database across programs
+		// by using a Postgres advisory lock.
+		state.err = sessionlock.With(ctx, baseDB, "testdb-"+hash, func() error {
+			return ensureTemplate(ctx, baseDB, migrator, &state)
+		})
+		states.Store(hash, state)
+	})
+	rawState, _ := states.Load(hash)
+	state := rawState.(templateState)
+	return &state, state.err
+}
+
+// ensureTemplate does what it says. It uses the 'datistemplate' column
+// to mark a template as having been successfully created, and does not set
+// 'datistemplate = true' until after the database has been created and
+// migrated. If it finds a template database where 'datistemplate = false', it
+// drops and then attempts to recreate that database.
+func ensureTemplate(
+	ctx context.Context,
+	baseDB *sql.DB,
+	migrator Migrator,
+	state *templateState,
+) error {
+	// If the templateDB already exists, and is marked as a template, it means we
+	// migrated successfully and we can exit right now.
+	var templateDBExists bool
+	query := "SELECT EXISTS (SELECT FROM pg_database WHERE datname = $1 AND datistemplate = true)"
+	if err := baseDB.QueryRowContext(ctx, query, state.conf.Database).Scan(&templateDBExists); err != nil {
+		return fmt.Errorf("failed to check if templatedb already exists: %w", err)
+	}
+	if templateDBExists {
+		return nil
+	}
+
+	// If it exists and isn't marked as a template, we failed to migrate it properly, so we
+	// should remove it entirely and then recreate it.
+	query = fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, state.conf.Database)
+	if _, err := baseDB.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("failed to drop broken template database %s: %w", state.conf.Database, err)
+	}
+
+	query = fmt.Sprintf(`CREATE DATABASE "%s" OWNER "%s"`, state.conf.Database, state.conf.User)
+	if _, err := baseDB.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("failed to create testdb %s: %w", state.conf.Database, err)
+	}
+
+	// Grant all privileges on the template to the test user.
+	for _, query = range []string{
+		fmt.Sprintf(`GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s"`, state.conf.Database, state.conf.User),
+		fmt.Sprintf(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO "%s"`, state.conf.User),
+		fmt.Sprintf(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO "%s"`, state.conf.User),
+	} {
+		if _, err := baseDB.ExecContext(ctx, query); err != nil {
+			return fmt.Errorf(
+				"failed to grant privileges on testdb %s to role %s: %w",
+				state.conf.Database,
+				state.conf.User,
+				err,
+			)
+		}
+	}
+
+	// Connect to the template.
+	templateDB, err := state.conf.connect()
+	if err != nil {
+		return fmt.Errorf("failed to connect to templatedb %s: %w", state.conf.Database, err)
+	}
+	defer templateDB.Close()
+
+	// Apply the Migrator logic one time, when creating the template database.
+	// If this fails, the template database will remain and the developer can
+	// connect to it and investigate the failure. Subsequent attempts to create
+	// the template will remove it, since it didn't get marked as complete
+	// (datistemplate=true).
+	if err := migrator.Prepare(ctx, templateDB, state.conf); err != nil {
+		return fmt.Errorf("failed to prepare %s: %w", state.conf.Database, err)
+	}
+	if err := migrator.Migrate(ctx, templateDB, state.conf); err != nil {
+		return fmt.Errorf("failed to migrate %s: %w", state.conf.Database, err)
+	}
+
+	// Finalize the creation of the template by marking it as a
+	// template.
+	query = "UPDATE pg_database SET datistemplate = true WHERE datname=$1"
+	if _, err := baseDB.ExecContext(ctx, query, state.conf.Database); err != nil {
+		return fmt.Errorf("failed to mark testdb %s as template: %w", state.conf.Database, err)
+	}
+	return nil
+}
+
+// createInstance creates a new test database instance by cloning a template.
+func createInstance(
+	ctx context.Context,
+	baseDB *sql.DB,
+	template templateState,
+) (*Config, error) {
+	testConf := template.conf
 	testConf.Database = fmt.Sprintf(
 		"testdb_tpl_%s_inst_%s",
-		templateConf.Hash,
+		template.hash,
 		randomID(),
 	)
-
-	// Create a test database from the template database. Using a template is
-	// substantially faster than using pg_dump.
-	ctx := context.Background()
 	query := fmt.Sprintf(
-		"CREATE DATABASE %s WITH TEMPLATE %s OWNER %s",
+		`CREATE DATABASE "%s" WITH TEMPLATE "%s" OWNER "%s"`,
 		testConf.Database,
-		templateConf.Database,
+		template.conf.Database,
 		testConf.User,
 	)
 	if _, err := baseDB.ExecContext(ctx, query); err != nil {
 		return nil, err
 	}
-
 	return &testConf, nil
 }
 
+// randomID is a helper for coming up with the names of the instance databases.
+// It uses 32 random bits in the name, which means collisions are unlikely.
 func randomID() string {
-	bytes := make([]byte, 4) // 32 random bits means collisons unlikely with less than 4bil
+	bytes := make([]byte, 4)
 	hash := md5.New()
 	_, err := rand.Read(bytes)
 	if err != nil {
