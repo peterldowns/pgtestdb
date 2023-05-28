@@ -218,16 +218,12 @@ database that can be cloned for each of your tests. testdb requires you to
 supply a `Migrator` to work. We provide a few for the most popular migration
 frameworks:
 
-- Complete:
-  - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
-  - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
-  - [dbmatemigrator](migrators/dbmatemigrator) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
-
-- 🚧 WIP:
-  - [goosemigrator](#) for [pressly/goose](https://github.com/pressly/goose)
-  - [sqlmigrator](#) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
-  - [pgmigrator](#) for [peterldowns/migrate](https://github.com/peterldowns/migrate)
-  - [popmigrator](#) for [gobuffalo/pop](https://github.com/gobuffalo/pop)
+- [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
+- [goosemigrator](migrators/goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
+- [dbmatemigrator](migrators/dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
+- [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
+- 🚧 [sqlmigrator](#) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
+- 🚧 [pgmigrator](#) for [peterldowns/migrate](https://github.com/peterldowns/migrate)
 
 You can also write your own. The interface is relatively simple, only `Hash()`
 and `Migrate()` need to actually do something:

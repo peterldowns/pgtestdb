@@ -111,3 +111,6 @@ func Execute(ctx context.Context, stdin io.Reader, program string, args ...strin
 	}
 	return strings.TrimSuffix(stdout.String(), "\n"), nil
 }
+
+// TODO: helper for updating the hash based on the struct fields / settings of
+// a migrator.
