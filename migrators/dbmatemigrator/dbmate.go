@@ -13,8 +13,7 @@ import (
 	"github.com/peterldowns/testdb/migrators/common"
 )
 
-// Option provides a way to configure the DbmateMigrator struct and the
-// migration behavior of dbmate.
+// Option provides a way to configure the DbmateMigrator struct and its behavior.
 //
 // dbmate documentation: https://github.com/amacneil/dbmate#command-line-options
 //
@@ -53,9 +52,6 @@ func WithTableName(name string) Option {
 // WithFS specifies a `fs.FS` from which to read the migration files.
 //
 // Default: `<nil>` (reads from the real filesystem)
-//
-// Equivalent to `--migrations-table`
-// https://github.com/amacneil/dbmate#command-line-options
 func WithFS(x fs.FS) Option {
 	return func(m *DbmateMigrator) {
 		m.FS = x
@@ -66,9 +62,9 @@ func WithFS(x fs.FS) Option {
 // uses dbmate to perform migrations.
 //
 // You can configure the behavior of dbmate by passing Options:
-//   - WithDir is the same as --migrations-dir
-//   - WithTableName is the same as --migrations-table
-//   - WithFS allows you to use an embedded filesystem.
+//   - [WithDir] is the same as --migrations-dir
+//   - [WithTableName] is the same as --migrations-table
+//   - [WithFS] allows you to use an embedded filesystem.
 func New(opts ...Option) *DbmateMigrator {
 	defaults := dbmate.New(nil)
 	m := &DbmateMigrator{

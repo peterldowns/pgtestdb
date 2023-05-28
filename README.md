@@ -214,10 +214,23 @@ type Config struct {
 ## `testdb.Migrator`
 
 The `Migrator` interface contains all of the logic needed to prepare a template
-database that can be cloned for each of your tests.
+database that can be cloned for each of your tests. testdb requires you to
+supply a `Migrator` to work. We provide a few for the most popular migration
+frameworks:
 
-🚧 You can write your own; or, we provide implementations for the most common
-migration libraries.
+- Complete:
+  - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
+  - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
+  - [dbmatemigrator](migrators/dbmatemigrator) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
+
+- 🚧 WIP:
+  - [goosemigrator](#) for [pressly/goose](https://github.com/pressly/goose)
+  - [sqlmigrator](#) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
+  - [pgmigrator](#) for [peterldowns/migrate](https://github.com/peterldowns/migrate)
+  - [popmigrator](#) for [gobuffalo/pop](https://github.com/gobuffalo/pop)
+
+You can also write your own. The interface is relatively simple, only `Hash()`
+and `Migrate()` need to actually do something:
 
 ```go
 // A Migrator is necessary to provision and verify the database that will be used as as template
@@ -238,23 +251,32 @@ type Migrator interface {
 	// enable certain extensions like `trigram` or `pgcrypto`, or creating or
 	// altering certain roles and permissions.
 	// Prepare will be given a *sql.DB connected to the template database.
-	Prepare(context.Context, *sql.DB) error
+	Prepare(context.Context, *sql.DB, Config) error
 
 	// Migrate is a function that actually performs the schema and data
 	// migrations to provision a template database. The connection given to this
 	// function is to an entirely new, empty, database. Migrate will be called
 	// only once, when the template database is being created.
-	Migrate(context.Context, *sql.DB) error
+	Migrate(context.Context, *sql.DB, Config) error
 
 	// Verify is called each time you ask for a new test database instance. It
 	// should be cheaper than the call to Migrate(), and should return nil iff
 	// the database is in the correct state. An example implementation would be
 	// to check that all the migrations have been marked as applied, and
 	// otherwise return an error.
-	Verify(context.Context, *sql.DB) error
+	Verify(context.Context, *sql.DB, Config) error
 }
-
 ```
+If you're writing your own `Migrator`, I recommend you use the existing ones
+as examples. Most migrators need to do some kind of file/directory hashing in
+order to implement `Hash()` &mdash; you may want to use
+[the helpers in the `common` subpackage](migrators/common):
+
+- `common.HashFiles(base fs.FS, paths ...string) (string, error)`
+- `common.HashDirs(base fs.FS, pattern string, dirs ...string) (string, error)`
+- `common.HashDir(pathToDir string) (string, error)`
+- `common.HashFile(pathToFile string) (string, error)`
+- `common.Execute(ctx context.Context, stdin io.Reader, program string, args ...string) (string, error)`
 
 # FAQ
 
