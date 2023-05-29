@@ -14,8 +14,8 @@ github.com/jackc/pgx/v5 v5.3.1/go.mod h1:t3JDKnCBlYIc0ewLF0Q7B8MXmoIaBOZj/ic7iHo
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/mattn/go-sqlite3 v1.14.16 h1:yOQRA0RpS5PFz/oikGwBEqvAWhWg5ufRz4ETLjwpU1Y=
-github.com/peterldowns/testdb v0.0.1 h1:A563W+u8mp4VTfSirxiWoz84annzdfTZ196UXFQ2TDk=
-github.com/peterldowns/testdb v0.0.1/go.mod h1:Bvt/AldexwnfBWDw5RF11U5VJIT2u2xvdpXTPaRo2uY=
+github.com/peterldowns/testdb v0.0.2 h1:E7CCGRExA2tqqJC+LMWmE7jNYNeIPW//LwJ1JQbjuXA=
+github.com/peterldowns/testdb v0.0.2/go.mod h1:Bvt/AldexwnfBWDw5RF11U5VJIT2u2xvdpXTPaRo2uY=
 github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156 h1:/KOn5XBKXOONFkM3uYdbTXFGMEXXYunFe0AYDWdces8=
 github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156/go.mod h1:J4sm75UEzbfBIcq0zbrshWWjsJQiJ5RrhTPYKVY2Ww8=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
