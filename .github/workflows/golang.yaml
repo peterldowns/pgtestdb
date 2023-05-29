@@ -35,6 +35,8 @@ jobs:
           go-version: 1.19
           cache: true
           cache-dependency-path: go.sum
+      - name: install atlas CLI
+        run: curl -sSf https://atlasgo.sh | sh
       - name: test
         run: go test ./... ./migrators/**
       - name: test (with race detector)
