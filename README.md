@@ -1,7 +1,3 @@
-| :warning: WARNING |
-|:--- |
-| This is a Work In Progress |
-
 # 🧪 testdb
 
 testdb makes it cheap and easy to create ephemeral Postgres databases for your
@@ -255,12 +251,12 @@ database that can be cloned for each of your tests. testdb requires you to
 supply a `Migrator` to work. We provide a few for the most popular migration
 frameworks:
 
+- 🚧 [pmigrator](#) for [peterldowns/pmig)(#) *coming soon!*
 - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
 - [goosemigrator](migrators/goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
 - [dbmatemigrator](migrators/dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
 - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
-- [sqlmigrator](#) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
-- 🚧 [pgmigrator](#) for [peterldowns/migrate](https://github.com/peterldowns/migrate)
+- [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
 
 You can also write your own. The interface is relatively simple, only `Hash()`
 and `Migrate()` need to actually do something:
