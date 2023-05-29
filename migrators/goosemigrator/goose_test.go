@@ -16,10 +16,7 @@ func TestGooseMigratorFromDisk(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	m := goosemigrator.New(
-		"migrations",
-		goosemigrator.WithTableName("goose_example_migrations"),
-	)
+	m := goosemigrator.New("migrations")
 	db := testdb.New(t, testdb.Config{
 		Host:     "localhost",
 		User:     "postgres",
@@ -31,23 +28,23 @@ func TestGooseMigratorFromDisk(t *testing.T) {
 
 	assert.NoFailures(t, func() {
 		var lastAppliedMigration int
-		err := db.QueryRowContext(ctx, "select max(version_id) from goose_example_migrations;").Scan(&lastAppliedMigration)
+		err := db.QueryRowContext(ctx, "select max(version_id) from goose_db_version").Scan(&lastAppliedMigration)
 		assert.Nil(t, err)
 		check.Equal(t, 2, lastAppliedMigration)
 	})
 
 	var numUsers int
-	err := db.QueryRowContext(ctx, "select count(*) from users;").Scan(&numUsers)
+	err := db.QueryRowContext(ctx, "select count(*) from users").Scan(&numUsers)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numUsers)
 
 	var numCats int
-	err = db.QueryRowContext(ctx, "select count(*) from cats;").Scan(&numCats)
+	err = db.QueryRowContext(ctx, "select count(*) from cats").Scan(&numCats)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numCats)
 
 	var numBlogPosts int
-	err = db.QueryRowContext(ctx, "select count(*) from blog_posts;").Scan(&numBlogPosts)
+	err = db.QueryRowContext(ctx, "select count(*) from blog_posts").Scan(&numBlogPosts)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numBlogPosts)
 }
@@ -75,23 +72,23 @@ func TestGooseMigratorFromFS(t *testing.T) {
 
 	assert.NoFailures(t, func() {
 		var lastAppliedMigration int
-		err := db.QueryRowContext(ctx, "select max(version_id) from goose_example_migrations;").Scan(&lastAppliedMigration)
+		err := db.QueryRowContext(ctx, "select max(version_id) from goose_example_migrations").Scan(&lastAppliedMigration)
 		assert.Nil(t, err)
 		check.Equal(t, 2, lastAppliedMigration)
 	})
 
 	var numUsers int
-	err := db.QueryRowContext(ctx, "select count(*) from users;").Scan(&numUsers)
+	err := db.QueryRowContext(ctx, "select count(*) from users").Scan(&numUsers)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numUsers)
 
 	var numCats int
-	err = db.QueryRowContext(ctx, "select count(*) from cats;").Scan(&numCats)
+	err = db.QueryRowContext(ctx, "select count(*) from cats").Scan(&numCats)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numCats)
 
 	var numBlogPosts int
-	err = db.QueryRowContext(ctx, "select count(*) from blog_posts;").Scan(&numBlogPosts)
+	err = db.QueryRowContext(ctx, "select count(*) from blog_posts").Scan(&numBlogPosts)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numBlogPosts)
 }

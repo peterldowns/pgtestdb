@@ -20,10 +20,10 @@ import (
 //	_ = hash.Add([]byte("hello"))
 //	_ = hash.Add([]byte("world"))
 //	out, _ := hash.String()
-func NewRecursiveHash(fields ...HashField) (RecursiveHash, error) {
+func NewRecursiveHash(fields ...HashField) RecursiveHash {
 	hash := RecursiveHash{md5.New()}
-	err := hash.AddFields(fields...)
-	return hash, err
+	hash.AddFields(fields...)
+	return hash
 }
 
 // RecursiveHash is a small wrapper around an md5 hash. Each time more data is
@@ -35,23 +35,37 @@ type RecursiveHash struct {
 }
 
 // Add updates the hash with the hash of new content.
-func (h RecursiveHash) Add(bytes []byte) error {
-	_, err := fmt.Fprintf(h, "%x=%x\n", h.Sum(nil), md5.Sum(bytes))
-	return err
+func (h RecursiveHash) Add(bytes []byte) {
+	fmt.Fprintf(h, "%x=%x\n", h.Sum(nil), md5.Sum(bytes))
 }
 
 // AddField updates the hash with the hash of a new field.
-func (h RecursiveHash) AddField(key string, value any) error {
-	return h.Add([]byte(fmt.Sprintf("%s=%v", key, value)))
+func (h RecursiveHash) AddField(key string, value any) {
+	h.Add([]byte(fmt.Sprintf("%s=%v", key, value)))
 }
 
 // AddFields updates the hash with the hash of multiple fields at once.
-func (h RecursiveHash) AddFields(fields ...HashField) error {
+func (h RecursiveHash) AddFields(fields ...HashField) {
 	for _, field := range fields {
-		if err := h.AddField(field.Key, field.Value); err != nil {
-			return err
-		}
+		h.AddField(field.Key, field.Value)
 	}
+}
+
+func (h RecursiveHash) AddFiles(base fs.FS, paths ...string) error {
+	filesHash, err := HashFiles(base, paths...)
+	if err != nil {
+		return err
+	}
+	h.Add([]byte(filesHash))
+	return nil
+}
+
+func (h RecursiveHash) AddDirs(base fs.FS, pattern string, dirs ...string) error {
+	dirsHash, err := HashDirs(base, pattern, dirs...)
+	if err != nil {
+		return err
+	}
+	h.Add([]byte(dirsHash))
 	return nil
 }
 
@@ -82,11 +96,9 @@ type HashField struct {
 //	HashFiles(nil, "0001_initial.sql", "0002_users.up.sql")
 //	HashDirs(embeddedFS, "migrations/0001_initial.sql")
 func HashFiles(base fs.FS, paths ...string) (string, error) {
+	var err error
 	var contents []byte
-	hash, err := NewRecursiveHash()
-	if err != nil {
-		return "", err
-	}
+	hash := NewRecursiveHash()
 	for _, path := range paths {
 		if base == nil {
 			contents, err = os.ReadFile(path)
@@ -96,9 +108,7 @@ func HashFiles(base fs.FS, paths ...string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if err := hash.Add(contents); err != nil {
-			return "", err
-		}
+		hash.Add(contents)
 	}
 	return hash.String(), nil
 }
@@ -114,10 +124,7 @@ func HashFiles(base fs.FS, paths ...string) (string, error) {
 //	HashDirs(embeddedFS, "*.sql", ".")
 func HashDirs(base fs.FS, pattern string, dirs ...string) (string, error) {
 	var dir fs.FS
-	hash, err := NewRecursiveHash()
-	if err != nil {
-		return "", err
-	}
+	hash := NewRecursiveHash()
 	for _, path := range dirs {
 		if base == nil {
 			dir = os.DirFS(path)
@@ -137,9 +144,7 @@ func HashDirs(base fs.FS, pattern string, dirs ...string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			if err := hash.Add(contents); err != nil {
-				return "", err
-			}
+			hash.Add(contents)
 		}
 	}
 	return hash.String(), nil

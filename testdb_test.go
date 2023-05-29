@@ -203,11 +203,11 @@ func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 	// The xxx schema contains a table xxx, the yyy schema contains a table yyy.
 	xxxm := &migrator{
 		hash:           "xxx",
-		extraMigration: "CREATE TABLE xxx (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY);",
+		extraMigration: "CREATE TABLE xxx (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY)",
 	}
 	yyym := &migrator{
 		hash:           "yyy",
-		extraMigration: "CREATE TABLE yyy (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY);",
+		extraMigration: "CREATE TABLE yyy (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY)",
 	}
 	// These two migrators should have different hashes.
 	yyyh, err := yyym.Hash()
@@ -231,12 +231,12 @@ func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 	// parallel, the order is dependent on whichever test runs first, which is
 	// really annoying to debug.
 	var countXXX int
-	err = xxxdb.QueryRowContext(ctx, "select count(*) from xxx;").Scan(&countXXX)
+	err = xxxdb.QueryRowContext(ctx, "select count(*) from xxx").Scan(&countXXX)
 	if check.Nil(t, err) {
 		check.Equal(t, 0, countXXX)
 	}
 	var countYYY int
-	err = yyydb.QueryRowContext(ctx, "select count(*) from yyy;").Scan(&countYYY)
+	err = yyydb.QueryRowContext(ctx, "select count(*) from yyy").Scan(&countYYY)
 	if check.Nil(t, err) {
 		check.Equal(t, 0, countXXX)
 	}

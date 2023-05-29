@@ -135,7 +135,7 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 			return
 		}
 		// Otherwise, remove the testdb from the server
-		query := fmt.Sprintf("DROP DATABASE %s", instance.Database)
+		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
 			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
 		}
@@ -233,9 +233,8 @@ func getOrCreateTemplate(
 		// package's tests may run in parallel, which means this does not
 		// perfectly synchronize interaction with the database.
 		state := templateState{}
+		state.hash = hash
 		state.conf = dbconf
-		// Use the TestUser/TestPassword because we guaranteed it to exist
-		// earlier.
 		state.conf.User = TestUser
 		state.conf.Password = TestPassword
 		state.conf.Database = fmt.Sprintf("testdb_tpl_%s", hash)

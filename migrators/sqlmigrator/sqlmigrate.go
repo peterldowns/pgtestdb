@@ -31,21 +31,19 @@ func (sm *SQLMigrator) Hash() (string, error) {
 		return "", err
 	}
 	// Include settings/values in the hash that affect the resulting schema of the database,
-	hash, err := common.NewRecursiveHash(
+	hash := common.NewRecursiveHash(
 		common.Field("TableName", sm.MigrationSet.TableName),
 		common.Field("SchemaName", sm.MigrationSet.SchemaName),
-		common.Field("DisableCreateTable", sm.MigrationSet.DisableCreateTable),
+		// DisableCreateTable is broken for MigrationSet instances, see
+		// https://github.com/rubenv/sql-migrate/pull/242 Once that PR is merged
+		// and a new release is created, I can bump this repository's
+		// dependencies and uncomment this line.
+		// common.Field("DisableCreateTable", sm.MigrationSet.DisableCreateTable),
 	)
-	if err != nil {
-		return "", err
-	}
 	// Include the contents of the Up migrations.
 	for _, migration := range migrations {
 		for _, contents := range migration.Up {
-			err := hash.Add([]byte(contents))
-			if err != nil {
-				return "", err
-			}
+			hash.Add([]byte(contents))
 		}
 	}
 	return hash.String(), nil

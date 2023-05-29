@@ -36,7 +36,9 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
       - name: test
-        run: go test ./...
+        run: go test ./... ./migrators/**
+      - name: test (with race detector)
+        run: go test -race ./... ./migrators/**
   lint:
     runs-on: ubuntu-latest
     steps:

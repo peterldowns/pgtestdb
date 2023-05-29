@@ -88,7 +88,13 @@ type DbmateMigrator struct {
 }
 
 func (m *DbmateMigrator) Hash() (string, error) {
-	return common.HashDirs(m.FS, "*.sql", m.MigrationsDir...)
+	hash := common.NewRecursiveHash(
+		common.Field("MigrationsTableName", m.MigrationsTableName),
+	)
+	if err := hash.AddDirs(m.FS, "*.sql", m.MigrationsDir...); err != nil {
+		return "", err
+	}
+	return hash.String(), nil
 }
 
 // Migrate runs dbmate.CreateAndMigrate() to migrate the template database.

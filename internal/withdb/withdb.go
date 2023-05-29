@@ -31,7 +31,7 @@ func WithDB(ctx context.Context, cb func(*sql.DB)) error {
 	defer db.Close()
 
 	testDBName := randomID("test_")
-	query := fmt.Sprintf("CREATE DATABASE %s;", testDBName)
+	query := fmt.Sprintf("CREATE DATABASE %s", testDBName)
 	if _, err := db.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("could not create new database template: %w", err)
 	}
@@ -43,7 +43,7 @@ func WithDB(ctx context.Context, cb func(*sql.DB)) error {
 		if err := testDB.Close(); err != nil {
 			panic(err)
 		}
-		query := fmt.Sprintf("DROP DATABASE %s;", testDBName)
+		query := fmt.Sprintf("DROP DATABASE %s", testDBName)
 		if _, err = db.ExecContext(ctx, query); err != nil {
 			panic(err)
 		}

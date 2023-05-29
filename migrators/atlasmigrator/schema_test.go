@@ -26,17 +26,17 @@ func TestSchemaMigrator(t *testing.T) {
 	assert.NotEqual(t, nil, db)
 
 	var numUsers int
-	err := db.QueryRowContext(ctx, "select count(*) from users;").Scan(&numUsers)
+	err := db.QueryRowContext(ctx, "select count(*) from users").Scan(&numUsers)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numUsers)
 
 	var numCats int
-	err = db.QueryRowContext(ctx, "select count(*) from cats;").Scan(&numCats)
+	err = db.QueryRowContext(ctx, "select count(*) from cats").Scan(&numCats)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numCats)
 
 	var numBlogPosts int
-	err = db.QueryRowContext(ctx, "select count(*) from blog_posts;").Scan(&numBlogPosts)
+	err = db.QueryRowContext(ctx, "select count(*) from blog_posts").Scan(&numBlogPosts)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numBlogPosts)
 }
