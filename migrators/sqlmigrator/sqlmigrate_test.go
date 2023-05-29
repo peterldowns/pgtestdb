@@ -14,17 +14,12 @@ import (
 	"github.com/peterldowns/testdb/migrators/sqlmigrator"
 )
 
-func TestSQLMigratorFromFolder(t *testing.T) {
+func TestSQLMigratorFromDisk(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	migrations := &migrate.FileMigrationSource{
-		Dir: "migrations",
-	}
-	sm := sqlmigrator.New(migrations, &migrate.MigrationSet{
-		TableName:  "example_sql_migrations",
-		SchemaName: "example_schema",
-	})
+	migrations := &migrate.FileMigrationSource{Dir: "migrations"}
+	sm := sqlmigrator.New(migrations, &migrate.MigrationSet{})
 	db := testdb.New(t, testdb.Config{
 		Host:     "localhost",
 		User:     "postgres",
@@ -36,7 +31,7 @@ func TestSQLMigratorFromFolder(t *testing.T) {
 
 	assert.NoFailures(t, func() {
 		var lastAppliedMigration string
-		err := db.QueryRowContext(ctx, "select id from example_schema.example_sql_migrations order by applied_at desc limit 1").Scan(&lastAppliedMigration)
+		err := db.QueryRowContext(ctx, "select id from gorp_migrations order by applied_at desc limit 1").Scan(&lastAppliedMigration)
 		assert.Nil(t, err)
 		check.Equal(t, "0002_cats.sql", lastAppliedMigration)
 	})

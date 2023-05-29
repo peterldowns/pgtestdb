@@ -39,6 +39,21 @@ func HashDir(pathToDir string) (string, error)
 func HashFile(pathToFile string) (string, error)
 ```
 
+```go
+// NewRecursiveHash creates a new [RecursiveHash], and adds any of the given fields
+// to it.
+//
+// Examples:
+//
+//  hash, _ := NewRecursiveHash()
+//  _ = hash.AddField(Field("CreateMigrationsTable", settings.CreateMigrationsTable))
+//  _ = hash.AddField(Field("MigrationsTableName", settings.MigrationsTableName))
+//  _ = hash.Add([]byte("hello"))
+//  _ = hash.Add([]byte("world"))
+//  out, _ := hash.String()
+func NewRecursiveHash(fields ...HashField) (RecursiveHash, error)
+```
+
 ## Shelling out
 ```go
 // Execute shells out to a `program`, passing it STDIN (if given) and any specified arguments.

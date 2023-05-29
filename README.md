@@ -101,10 +101,45 @@ to be well-organized, and each function has a meaningful docstring, so you
 should be able to explore it quite easily using an LSP plugin, reading the
 code, or clicking through the go.dev docs.
 
-## How to use it
+## Quickstart
 
-You probably want to define your own helper function that calls
-`testdb.New(...)` with the same `testdb.Config` and `testdb.Migrator` each time.
+### minimum viable example
+
+Here's how you use `testdb.New()` in a test to get a database.
+
+```go
+func TestMyExample(t *testing.T) {
+  // testdb is concurrency safe, go crazy, run a lot of tests at once
+  t.Parallel()
+  // Connection details for the postgres server. You should connect as an admin
+  // user. Use a dedicated server explicitly for tests, do NOT use your
+  // production database.
+  conf := testdb.Config{
+    User:     "postgres",
+    Password: "password",
+    Host:     "localhost",
+    Port:     "5433",
+    Options:  "sslmode=disable",
+  }
+  // Read the docs below for more information, but you are responsible for
+  // supplying a Migrator that will run your migrations.
+  migrator := myMigrator()
+  // If there is any sort of error, the test will end here using t.Fatal().  No
+  // need to check errors, you now have a working database!
+  db := testdb.New(t, conf, migrator)
+  // run some queries, do whatever, etc.
+  var message string
+  err := db.QueryRow("select 'hello world'").Scan(&message)
+  assert.Nil(t, err)
+  assert.Equal(t, "hello world", message)
+}
+```
+
+### test helper
+
+You should define a test helper function that calls `testdb.New(...)` with the
+same `testdb.Config` and `testdb.Migrator` each time, then use the helper in
+each of your tests. Here is a an example:
 
 ```go
 package testhelpers
@@ -119,13 +154,7 @@ import (
 // NewDB is a helper that returns an open connection to a unique and isolated
 // test database, fully migrated and ready for you to query.
 func NewDB(t *testing.T) *sql.DB {
-  // Call t.Helper() to make sure that any error logs in a failing tests are
-  // shown with the appropriate file/line information.
-  t.Helper()
-
-  // This configuration will work with the docker-compose.yml file earlier,
-  // and assumes that when you run `go test ...` you have a Postgres server
-  // running. 
+  t.Helper() // makes sure error logs are backtraced appropriately in test output
   conf := testdb.Config{
     User:     "postgres",
     Password: "password",
@@ -133,11 +162,7 @@ func NewDB(t *testing.T) *sql.DB {
     Port:     "5433",
     Options:  "sslmode=disable",
   }
-
-  // You'll need to either implement your own or use one of our adapters for
-  // existing migration tools (see the docs below for more information.)
   var m testdb.Migrator = &someImplementation{}
-
   return testdb.New(t, conf, m)
 }
 ```
@@ -153,11 +178,13 @@ func TestAQuery(t *testing.T) {
   ctx := context.Background()
 
   var result string
-  err := db.QueryRowContext(ctx, "SELECT 'hello world'").Scan(&result)
+  err := db.QueryRow("SELECT 'hello world'").Scan(&result)
   check.Nil(t, err)
   check.Equal(t, "hello world", result)
 }
 ```
+
+### running a server
 
 You'll need a Postgres server running or the test will fail with a
 complaint that it could not connect to the server to create a new database:
@@ -167,7 +194,17 @@ complaint that it could not connect to the server to create a new database:
     /Users/pd/code/example/example_test.go:170: failed to provision test database template: failed to connect to `host=localhost user=postgres database=`: dial error (dial tcp [fe80::1%lo0]:5433: connect: connection refused)
 ```
 
-## `testdb.New`
+testdb does not provide any helpers for creating the database itself (although
+however you run it, you should make sure it is ram-backed and tuned for good
+performance.) You can use Docker, run a Postgres binary on your machine, connect
+to a remote server somewhere, or whatever. If you'd like, you can even spin up
+the server as part of your tests by using
+[ory/dockertest](https://github.com/ory/dockertest/blob/v3/examples/PostgreSQL.md)
+or [rubenv/pgtest](https://github.com/rubenv/pgtest)  or
+[fergusstrange/embedded-postgres](https://github.com/fergusstrange/embedded-postgres).
+
+## API
+### `testdb.New`
 
 This is the only method that `testdb` exposes, and it's the only method you need
 to call in your tests. Each time it is called, it:
@@ -192,7 +229,7 @@ It will use both golang-level locks (`sync.Once`) and Postgres-level [advisory l
 
 Once it creates your brand new fresh test database, it will `t.Log()` the connection string so that iff your test fails you can connect to the database and figure out what happened.
 
-## `testdb.Config`
+### `testdb.Config`
 
 The `Config` struct contains the details needed to connect to a postgres server.
 Make sure to connect with a user that has the necessary permissions to create
@@ -211,7 +248,7 @@ type Config struct {
 }
 ```
 
-## `testdb.Migrator`
+### `testdb.Migrator`
 
 The `Migrator` interface contains all of the logic needed to prepare a template
 database that can be cloned for each of your tests. testdb requires you to
@@ -266,13 +303,7 @@ type Migrator interface {
 If you're writing your own `Migrator`, I recommend you use the existing ones
 as examples. Most migrators need to do some kind of file/directory hashing in
 order to implement `Hash()` &mdash; you may want to use
-[the helpers in the `common` subpackage](migrators/common):
-
-- `common.HashFiles(base fs.FS, paths ...string) (string, error)`
-- `common.HashDirs(base fs.FS, pattern string, dirs ...string) (string, error)`
-- `common.HashDir(pathToDir string) (string, error)`
-- `common.HashFile(pathToFile string) (string, error)`
-- `common.Execute(ctx context.Context, stdin io.Reader, program string, args ...string) (string, error)`
+[the helpers in the `common` subpackage](migrators/common).
 
 # FAQ
 
