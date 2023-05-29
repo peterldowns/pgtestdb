@@ -13,8 +13,6 @@ being used. Here's an example:
 
 ```go
 func TestGooseMigratorFromDisk(t *testing.T) {
-	ctx := context.Background()
-
 	m := goosemigrator.New(
 		"migrations",
 		goosemigrator.WithTableName("goose_example_migrations"),
@@ -33,8 +31,6 @@ func TestGooseMigratorFromDisk(t *testing.T) {
 var exampleFS embed.FS
 
 func TestGooseMigratorFromFS(t *testing.T) {
-	t.Parallel()
-
 	gm := goosemigrator.New(
 		"migrations",
 		goosemigrator.WithFS(exampleFS),

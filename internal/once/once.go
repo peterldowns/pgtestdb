@@ -1,6 +1,6 @@
 // safeonce contains helpers for constructing type-safe, concurrency-safe values
 // that are only ever initialized once, and can potentially return an error.
-package safeonce
+package once
 
 import "sync"
 

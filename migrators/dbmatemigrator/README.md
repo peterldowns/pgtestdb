@@ -10,9 +10,6 @@ being used. Here's an example:
 var migrationsFS embed.FS
 
 func TestDbmateMigratorWithFSAndOptions(t *testing.T) {
-    t.Parallel()
-    ctx := context.Background()
-
     m := dbmatemigrator.New(
         // Use the embedded filesystem
         dbmatemigrator.WithFS(migrationsFS),
@@ -33,8 +30,6 @@ func TestDbmateMigratorWithFSAndOptions(t *testing.T) {
 }
 
 func TestDbmateMigratorWithDefaults(t *testing.T) {
-    t.Parallel()
-
     // If you're using the default settings, you don't need to pass any options.
     // This will read migrations from disk, from the folder "./db/migrations",
     // and store the results in the "schema_migrations" table.

@@ -13,7 +13,8 @@ common contains helpers for use in different implementations of the `Migrator` i
 //	HashFiles(nil, "0001_initial.sql")
 //	HashFiles(nil, "0001_initial.sql", "0002_users.up.sql")
 //	HashDirs(embeddedFS, "migrations/0001_initial.sql")
-func HashFiles(base fs.FS, paths ...string) (string, error) `
+func HashFiles(base fs.FS, paths ...string) (string, error)
+```
 
 ```go
 // HashDirs will return as unique hash based on the contents of all files that

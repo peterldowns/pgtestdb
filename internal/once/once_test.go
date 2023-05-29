@@ -1,4 +1,4 @@
-package safeonce_test
+package once_test
 
 import (
 	"fmt"
@@ -8,8 +8,68 @@ import (
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
-	"github.com/peterldowns/testdb/internal/safeonce"
+	"github.com/peterldowns/testdb/internal/once"
 )
+
+func TestVar(t *testing.T) {
+	x := newMutexCounter()
+	onceInt := once.NewVar[int]()
+	assert.NoFailures(t, func() {
+		val, err := onceInt.Get()
+		check.Equal(t, nil, val)
+		check.Equal(t, nil, err)
+		check.Equal(t, 0, x.Read())
+	})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			val, err := onceInt.Set(func() (*int, error) {
+				x.Add(1)
+				return nil, fmt.Errorf("problem initializing")
+			})
+			check.Equal(t, nil, val)
+			check.Error(t, err)
+			check.Equal(t, 1, x.Read())
+		}()
+	}
+	wg.Wait()
+	check.Equal(t, 1, x.Read())
+}
+
+func TestMap(t *testing.T) {
+	x := newMutexCounter()
+	onceMap := once.NewMap[string, string]()
+	key := "hello"
+	assert.NoFailures(t, func() {
+		val, err := onceMap.Get(key)
+		check.Equal(t, nil, val)
+		check.Equal(t, nil, err)
+		check.Equal(t, 0, x.Read())
+	})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			val, err := onceMap.Set(key, func() (*string, error) {
+				x.Add(1)
+				val := "world"
+				return &val, nil
+			})
+			check.Nil(t, err)
+			if check.NotEqual(t, nil, val) {
+				check.Equal(t, "world", *val)
+			}
+			check.Equal(t, 1, x.Read())
+		}()
+	}
+	wg.Wait()
+	check.Equal(t, 1, x.Read())
+}
 
 // mutexCounter is a concurrency-safe counter that we need to test that our
 // other code is actually concurrency safe.
@@ -32,64 +92,4 @@ func (c *mutexCounter) Read() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.number
-}
-
-func TestVar(t *testing.T) {
-	x := newMutexCounter()
-	safeInt := safeonce.NewVar[int]()
-	assert.NoFailures(t, func() {
-		val, err := safeInt.Get()
-		check.Equal(t, nil, val)
-		check.Equal(t, nil, err)
-		check.Equal(t, 0, x.Read())
-	})
-
-	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			val, err := safeInt.Set(func() (*int, error) {
-				x.Add(1)
-				return nil, fmt.Errorf("problem initializing")
-			})
-			check.Equal(t, nil, val)
-			check.Error(t, err)
-			check.Equal(t, 1, x.Read())
-		}()
-	}
-	wg.Wait()
-	check.Equal(t, 1, x.Read())
-}
-
-func TestMap(t *testing.T) {
-	x := newMutexCounter()
-	safeMap := safeonce.NewMap[string, string]()
-	key := "hello"
-	assert.NoFailures(t, func() {
-		val, err := safeMap.Get(key)
-		check.Equal(t, nil, val)
-		check.Equal(t, nil, err)
-		check.Equal(t, 0, x.Read())
-	})
-
-	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			val, err := safeMap.Set(key, func() (*string, error) {
-				x.Add(1)
-				val := "world"
-				return &val, nil
-			})
-			check.Nil(t, err)
-			if check.NotEqual(t, nil, val) {
-				check.Equal(t, "world", *val)
-			}
-			check.Equal(t, 1, x.Read())
-		}()
-	}
-	wg.Wait()
-	check.Equal(t, 1, x.Read())
 }

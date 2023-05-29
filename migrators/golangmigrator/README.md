@@ -14,7 +14,6 @@ Here's an example:
 var exampleFS embed.FS
 
 func TestMigrateFromEmbeddedFS(t *testing.T) {
-	t.Parallel()
 	gm := golangmigrator.New(
 		"migrations",
 		golangmigrator.WithFS(exampleFS),
@@ -31,7 +30,6 @@ func TestMigrateFromEmbeddedFS(t *testing.T) {
 }
 
 func TestMigrateFromDisk(t *testing.T) {
-	t.Parallel()
 	gm := golangmigrator.New("migrations")
 	db := testdb.New(t, testdb.Config{
 		Host:     "localhost",

@@ -11,6 +11,15 @@ import (
 
 // NewRecursiveHash creates a new [RecursiveHash], and adds any of the given fields
 // to it.
+//
+// Example:
+//
+//	hash, _ := NewRecursiveHash()
+//	_ = hash.AddField(Field("CreateMigrationsTable", settings.CreateMigrationsTable))
+//	_ = hash.AddField(Field("MigrationsTableName", settings.MigrationsTableName))
+//	_ = hash.Add([]byte("hello"))
+//	_ = hash.Add([]byte("world"))
+//	out, _ := hash.String()
 func NewRecursiveHash(fields ...HashField) (RecursiveHash, error) {
 	hash := RecursiveHash{md5.New()}
 	err := hash.AddFields(fields...)

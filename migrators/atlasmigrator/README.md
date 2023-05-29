@@ -21,9 +21,6 @@ You can use it like this:
 
 ```go
 func TestWithSchemaMigrator(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-
 	m := atlasmigrator.NewSchemaMigrator("schema.hcl")
 	db := testdb.New(t, testdb.Config{
 		Host:     "localhost",
@@ -52,9 +49,6 @@ where `schemaFilePath` is the path to a `.hcl` schema file as described [in the 
 You can use it like this:
 ```go
 func TestWithSchemaMigrator(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-
 	m := atlasmigrator.NewSchemaMigrator("schema.hcl")
 	db := testdb.New(t, testdb.Config{
 		Host:     "localhost",

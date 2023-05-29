@@ -10,8 +10,6 @@ being used. Here's an example:
 
 ```go
 func TestSQLMigratorFromDisk(t *testing.T) {
-	t.Parallel()
-
 	migrations := &migrate.FileMigrationSource{Dir: "migrations"}
 	sm := sqlmigrator.New(migrations, &migrate.MigrationSet{})
 	db := testdb.New(t, testdb.Config{
@@ -28,8 +26,6 @@ func TestSQLMigratorFromDisk(t *testing.T) {
 var exampleFS embed.FS
 
 func TestSQLMigratorFromFSWithSomeConfiguration(t *testing.T) {
-	t.Parallel()
-
 	migrations := &migrate.EmbedFileSystemMigrationSource{
 		FileSystem: exampleFS,
 		Root:       "migrations",
