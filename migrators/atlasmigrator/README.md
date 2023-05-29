@@ -1,8 +1,13 @@
 # atlasmigrator
 
+```shell
+go get github.com/peterldowns/testdb/migrators/atlasmigrator@latest
+```
+
 atlasmigrator provides migrators that can be used out of the box with projects that use [ariga/atlas](https://github.com/ariga/atlas) for migrations.
 
 As [recommended by the Atlas maintainers](https://github.com/ariga/atlas/issues/1527#issuecomment-1465123713), these migrators expect the `atlas` CLI program to exist on your path at the time that the tests are run, and shells out to that program to run migrations. These migrators do *not* call the Atlas golang code directly.
+
 
 ## DirMigrator for Versioned Workflows
 

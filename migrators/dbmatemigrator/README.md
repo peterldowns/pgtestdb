@@ -1,5 +1,9 @@
 # dbmatemigrator
 
+```shell
+go get github.com/peterldowns/testdb/migrators/dbmatemigrator@latest
+```
+
 dbmatemigrator provides a migrator that can be used out of the box with projects that use [amacneil/dbmate](https://github.com/amacneil/dbmate) for migrations.
 
 You can configure the migrations directory, the table name, and the filesystem

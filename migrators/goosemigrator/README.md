@@ -1,5 +1,9 @@
 # goosemigrator
 
+```shell
+go get github.com/peterldowns/testdb/migrators/goosemigrator@latest
+```
+
 goosemigrator provides migrators that can be used out of the box with projects that use [pressly/goose](https://github.com/pressly/goose) for migrations.
 
 Currently we only support

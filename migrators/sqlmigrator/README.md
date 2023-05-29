@@ -1,5 +1,9 @@
 # sqlmigrator
 
+```shell
+go get github.com/peterldowns/testdb/migrators/sqlmigrator@latest
+```
+
 sqlmigrator provides migrators that can be used out of the box with projects that use [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate) for migrations.
 
 sqlmigrator supports any migration source and any configuration settings allowed with sql-migrate. Instead of using the global migration instance,

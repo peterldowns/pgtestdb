@@ -1,5 +1,9 @@
 # golangmigrator
 
+```
+go get github.com/peterldowns/testdb/migrators/golangmigrator@latest
+```
+
 golangmigrator provides a migrator that can be used out of the box with projects
 that use [golang-migrate/migrate](https://github.com/golang-migrate/migrate) for
 migrations. Because we must be able to hash the migrations to create a unique

@@ -35,7 +35,7 @@ state and data.
 testdb will prepare the template by migrating it based on whatever strategy you provide.
 It will only re-run your migrations if their contents change.
 
-You also have to provide a connection to a Postgres server. We recommend running
+You also have to provide a connection to a Postgres server. I recommend running
 a dedicated server just for tests that is RAM-backed (instead of disk-backed)
 and tuned for performance by removing all data-sync guarantees. This would be a
 horrible idea in production, but in tests it works great, and your tests will go
@@ -240,8 +240,8 @@ type Config struct {
 
 The `Migrator` interface contains all of the logic needed to prepare a template
 database that can be cloned for each of your tests. testdb requires you to
-supply a `Migrator` to work. We provide a few for the most popular migration
-frameworks:
+supply a `Migrator` to work. I have written a few for the most popular
+migration frameworks, you can use these right away:
 
 - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
 - [goosemigrator](migrators/goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
@@ -308,10 +308,12 @@ As far as I know, no one has made it this easy to do it though.
 
 ## Rough perf numbers?
 
-~500ms to prepare the template database one time, then ~10ms to get a new clone
-of that template. The time to prepare the template depends on your migration
-strategy and your database schema; the time to get a new clone is pretty
-constant. It all depends on the speed of you server.
+Think ~500ms to prepare the template database one time, ~10ms to clone a template.
+
+The time to prepare the template depends on your migration strategy and your database schema.
+The time to get a new clone seems pretty constant even for large schemas.
+
+Everything depends on the speed of your server.
 
 ## How do I make it go faster?
 A ramdisk and turning off fsync is just the start &mdash; if you care about
