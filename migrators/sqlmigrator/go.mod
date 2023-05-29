@@ -3,7 +3,7 @@ module github.com/peterldowns/testdb/migrators/sqlmigrator
 go 1.18
 
 require (
-	github.com/peterldowns/testdb v0.0.0-20230528051858-084bac9ddd50
+	github.com/peterldowns/testdb v0.0.1
 	github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156
 	github.com/rubenv/sql-migrate v1.4.0
 )

@@ -24,3 +24,9 @@ test-all:
 lint *args:
   golangci-lint run --fix --config .golangci.yaml "$@"
   find . -name '*.nix' | xargs nixpkgs-fmt
+
+tag:
+  #!/usr/bin/env bash
+  git tag v$(cat VERSION)
+  git tag v$(cat VERSION)+commit.$(git rev-parse --short HEAD)
+

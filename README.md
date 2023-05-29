@@ -251,7 +251,6 @@ database that can be cloned for each of your tests. testdb requires you to
 supply a `Migrator` to work. We provide a few for the most popular migration
 frameworks:
 
-- 🚧 [pmigrator](#) for [peterldowns/pmig)(#) *coming soon!*
 - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
 - [goosemigrator](migrators/goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
 - [dbmatemigrator](migrators/dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)

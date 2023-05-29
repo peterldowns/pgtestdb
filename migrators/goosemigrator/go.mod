@@ -3,7 +3,7 @@ module github.com/peterldowns/testdb/migrators/goosemigrator
 go 1.18
 
 require (
-	github.com/peterldowns/testdb v0.0.0-20230528043102-f5db1190f3c8
+	github.com/peterldowns/testdb v0.0.1
 	github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156
 	github.com/pressly/goose/v3 v3.11.2
 )

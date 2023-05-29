@@ -309,8 +309,8 @@ github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pelletier/go-toml v1.9.3/go.mod h1:u1nR/EPcESfeI/szUZKdtJ0xRNbUoANCkoOuaOx1Y+c=
-github.com/peterldowns/testdb v0.0.0-20230528051858-084bac9ddd50 h1:b8E+126YVYqOdM3apbZuhy9fbjgPFYK72sdBt6MMFxg=
-github.com/peterldowns/testdb v0.0.0-20230528051858-084bac9ddd50/go.mod h1:Bvt/AldexwnfBWDw5RF11U5VJIT2u2xvdpXTPaRo2uY=
+github.com/peterldowns/testdb v0.0.1 h1:A563W+u8mp4VTfSirxiWoz84annzdfTZ196UXFQ2TDk=
+github.com/peterldowns/testdb v0.0.1/go.mod h1:Bvt/AldexwnfBWDw5RF11U5VJIT2u2xvdpXTPaRo2uY=
 github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156 h1:/KOn5XBKXOONFkM3uYdbTXFGMEXXYunFe0AYDWdces8=
 github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156/go.mod h1:J4sm75UEzbfBIcq0zbrshWWjsJQiJ5RrhTPYKVY2Ww8=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=
