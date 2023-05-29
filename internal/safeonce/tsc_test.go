@@ -44,8 +44,11 @@ func TestVar(t *testing.T) {
 		check.Equal(t, 0, x.Read())
 	})
 
+	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			val, err := safeInt.Set(func() (*int, error) {
 				x.Add(1)
 				return nil, fmt.Errorf("problem initializing")
@@ -55,6 +58,7 @@ func TestVar(t *testing.T) {
 			check.Equal(t, 1, x.Read())
 		}()
 	}
+	wg.Wait()
 	check.Equal(t, 1, x.Read())
 }
 
@@ -69,8 +73,11 @@ func TestMap(t *testing.T) {
 		check.Equal(t, 0, x.Read())
 	})
 
+	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			val, err := safeMap.Set(key, func() (*string, error) {
 				x.Add(1)
 				val := "world"
@@ -83,5 +90,6 @@ func TestMap(t *testing.T) {
 			check.Equal(t, 1, x.Read())
 		}()
 	}
+	wg.Wait()
 	check.Equal(t, 1, x.Read())
 }
