@@ -7,9 +7,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"sync"
 	"testing"
 
+	"github.com/peterldowns/testdb/internal/safeonce"
 	"github.com/peterldowns/testdb/internal/sessionlock"
 )
 
@@ -87,20 +87,16 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	return db
 }
 
-// userOnce is used to guarantee that we only get-or-create the testdb user
+// userInit is used to guarantee that we only get-or-create the testdb user
 // at most once per program.
-var userOnce sync.Once //nolint:gochecknoglobals
+var userInit safeonce.Var[any] = safeonce.NewVar[any]() //nolint:gochecknoglobals
 
 func ensureUser(
 	ctx context.Context,
 	baseDB *sql.DB,
 ) error {
-	// Only attempt to create the test user once per program. If it fails, it fails,
-	// and testdb.New() will return an error.
-	// TODO: store the error result in a concurrency-safe way and return that each time.
-	var userErr error
-	userOnce.Do(func() {
-		userErr = sessionlock.With(ctx, baseDB, "testdb-user", func() error {
+	_, err := userInit.Set(func() (*any, error) {
+		return nil, sessionlock.With(ctx, baseDB, "testdb-user", func() error {
 			// Get-or-create a role/user dedicated to connecting to these test databases.
 			var roleExists bool
 			query := "SELECT EXISTS (SELECT from pg_catalog.pg_roles WHERE rolname = $1)"
@@ -127,7 +123,7 @@ func ensureUser(
 			return nil
 		})
 	})
-	return userErr
+	return err
 }
 
 // templateState keeps the state of a single template database, so that each
@@ -135,17 +131,9 @@ func ensureUser(
 type templateState struct {
 	conf Config
 	hash string
-	err  error
 }
 
-var (
-	// stateLocks is a map[hash]*sync.Once, for guaranteeing that we only edit
-	// the states map at most once per program.
-	stateLocks sync.Map //nolint:gochecknoglobals
-	// states is a map[hash]templateState, for holding the state of each
-	// template database in a concurrency-safe way.
-	states sync.Map //nolint:gochecknoglobals
-)
+var states safeonce.Map[string, templateState] = safeonce.NewMap[string, templateState]() //nolint:gochecknoglobals
 
 // getOrCreateTemplate will get-or-create a template database, synchronizing at the
 // golang level (with the stateLocks map, so that each template database is
@@ -171,11 +159,7 @@ func getOrCreateTemplate(
 	if err != nil {
 		return nil, err
 	}
-	// Get-or-create a sync.Once for get-or-creating the state of
-	// the template database.
-	onceRaw, _ := stateLocks.LoadOrStore(hash, &sync.Once{})
-	once := onceRaw.(*sync.Once)
-	once.Do(func() {
+	return states.Set(hash, func() (*templateState, error) {
 		// This function runs once per program, but only synchronizes access
 		// within a single program. When running larger test suites, each
 		// package's tests may run in parallel, which means this does not
@@ -189,14 +173,14 @@ func getOrCreateTemplate(
 		state.conf.Database = fmt.Sprintf("testdb_tpl_%s", hash)
 		// We synchronize the creation of the template database across programs
 		// by using a Postgres advisory lock.
-		state.err = sessionlock.With(ctx, baseDB, "testdb-"+hash, func() error {
+		err := sessionlock.With(ctx, baseDB, "testdb-"+hash, func() error {
 			return ensureTemplate(ctx, baseDB, migrator, &state)
 		})
-		states.Store(hash, state)
+		if err != nil {
+			return nil, err
+		}
+		return &state, nil
 	})
-	rawState, _ := states.Load(hash)
-	state := rawState.(templateState)
-	return &state, state.err
 }
 
 // ensureTemplate does what it says. It uses the 'datistemplate' column

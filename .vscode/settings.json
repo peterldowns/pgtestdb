@@ -4,7 +4,7 @@
     "**/.git": true,
     "**/__debug_bin": true,
     ".go/": true,
-    ".toolchain": true,
+    ".toolchain/": true,
     "bin": true,
     "result": true,
     "tmp": true

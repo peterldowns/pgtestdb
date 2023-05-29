@@ -222,7 +222,7 @@ frameworks:
 - [goosemigrator](migrators/goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
 - [dbmatemigrator](migrators/dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
 - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
-- 🚧 [sqlmigrator](#) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
+- [sqlmigrator](#) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
 - 🚧 [pgmigrator](#) for [peterldowns/migrate](https://github.com/peterldowns/migrate)
 
 You can also write your own. The interface is relatively simple, only `Hash()`
