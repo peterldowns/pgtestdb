@@ -49,6 +49,7 @@ func With(ctx context.Context, db *sql.DB, lockName string, cb func() error) err
 			panic(err)
 		}
 	}()
+
 	// TODO: why not call cb() with the conn?
 	return cb()
 }
@@ -58,19 +59,14 @@ func With(ctx context.Context, db *sql.DB, lockName string, cb func() error) err
 // released if the `conn` is closed.
 func New(ctx context.Context, conn *sql.Conn, lockName string) (func() error, error) {
 	id := ID(lockName)
-	qs := fmt.Sprintf("SELECT pg_advisory_lock(%d)", id)
-	if _, err := conn.ExecContext(ctx, qs); err != nil {
+	lockQuery := fmt.Sprintf("SELECT pg_advisory_lock(%d)", id)
+	unlockQuery := fmt.Sprintf("SELECT pg_advisory_unlock(%d)", id)
+	if _, err := conn.ExecContext(ctx, lockQuery); err != nil {
 		return nil, err
 	}
 	return func() error {
-		qs := fmt.Sprintf("SELECT pg_advisory_unlock(%d)", id)
-		// TODO: why scan the result to success, and not just Exec to unlock?
-		var success bool
-		if err := conn.QueryRowContext(ctx, qs).Scan(&success); err != nil {
+		if _, err := conn.ExecContext(ctx, unlockQuery); err != nil {
 			return err
-		}
-		if !success {
-			return fmt.Errorf("lock not held")
 		}
 		return nil
 	}, nil
