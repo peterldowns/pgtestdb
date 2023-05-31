@@ -47,8 +47,6 @@ tag-migrators:
   set -e
   raw="v$(cat VERSION)"
   commit="${raw}+commit.$(git rev-parse --short HEAD)"
-  git tag "$raw"
-  git tag "$commit"
   git tag "migrators/atlasmigrator/$raw"
   git tag "migrators/atlasmigrator/$commit"
   git tag "migrators/dbmigrator/$raw"

@@ -3,7 +3,7 @@ module github.com/peterldowns/testdb/migrators/golangmigrator
 go 1.18
 
 require (
-	github.com/peterldowns/testdb v0.0.2
+	github.com/peterldowns/testdb v0.0.4
 	github.com/peterldowns/testy v0.0.0-20230524161144-e7734875b156
 )
 
