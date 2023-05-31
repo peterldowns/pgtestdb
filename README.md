@@ -1,5 +1,10 @@
 # 🧪 testdb
 
+![Release](https://img.shields.io/static/v1?label=latest%20version&message=v0.0.4&color=blueviolet)
+![Golang](https://img.shields.io/static/v1?label=golang&message=1.18%2B&color=blue)
+![Issues](https://shields.io/github/issues/peterldowns/testdb)
+![Stars](https://shields.io/github/stars/peterldowns/testdb?style=social)
+
 testdb makes it cheap and easy to create ephemeral Postgres databases for your
 golang tests. It uses template databases to give each test a fully prepared and
 migrated Postgres database &mdash; no mocking, no cleanup, no hassle. Bring your
