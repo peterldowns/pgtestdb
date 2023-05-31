@@ -55,3 +55,8 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.52.2
+      - name: go mod tidy
+        run: go mod tidy
+      - name: check for any changes
+        run: |
+          [[ $(git status --porcelain) == "" ]] || (echo "changes detected" && exit 1)
