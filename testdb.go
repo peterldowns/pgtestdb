@@ -362,3 +362,23 @@ func randomID() string {
 	}
 	return hex.EncodeToString(hash.Sum(bytes))
 }
+
+// NoopMigrator fulfills the Migrator interface but does absolutely nothing. Use
+// this if you just want to get fresh, empty databases in your tests.
+type NoopMigrator struct{}
+
+func (NoopMigrator) Hash() (string, error) {
+	return "noop", nil
+}
+
+func (NoopMigrator) Prepare(_ context.Context, _ *sql.DB, _ Config) error {
+	return nil
+}
+
+func (NoopMigrator) Migrate(_ context.Context, _ *sql.DB, _ Config) error {
+	return nil
+}
+
+func (NoopMigrator) Verify(_ context.Context, _ *sql.DB, _ Config) error {
+	return nil
+}
