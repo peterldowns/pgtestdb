@@ -6,74 +6,12 @@
 ![Stars](https://shields.io/github/stars/peterldowns/testdb?style=social)
 
 testdb makes it cheap and easy to create ephemeral Postgres databases for your
-golang tests. It uses template databases to give each test a fully prepared and
-migrated Postgres database &mdash; no mocking, no cleanup, no hassle. Bring your
-own migration framework, works with everything.
+golang tests. It uses [template
+databases](https://www.postgresql.org/docs/current/manage-ag-templatedbs.html)
+to give each test a fully prepared and migrated Postgres database &mdash; no
+mocking, no cleanup, no hassle. Bring your own migration framework, works with
+everything.
 
-If you use
-testdb, you and your team will write more useful tests that run faster and catch
-more problems.
-
-**Stop** worrying about the cost of adding tests that use your database.
-
-**Stop** wasting time writing mocks and stubs for your database.
-
-**Stop** arguing about the conjoined triangle of unit and integration tests.
-
-**Start writing tests** that meaningfully exercise your application's actual
-logic and behavior, using the full power of your database (including triggers,
-views, extensions, etc.)
-
-
-# How does it work?
-
-Each time a test asks for a fresh database by calling `testdb.New`, testdb
-will check to see if [a template database](https://www.postgresql.org/docs/current/manage-ag-templatedbs.html) already exists. If not, it creates one
-and runs your migrations.  Once the template exists, it is _very_ fast to
-create a new database from that template.
-
-If your test succeeds, the database is automatically removed as part of the test
-cleanup. If your test fails, or while you're using a debugger, the database is
-left alive and you can connect to it with `psql` or other tools to inspect the
-state and data.
-
-testdb will prepare the template by migrating it based on whatever strategy you provide.
-It will only re-run your migrations if their contents change.
-
-You also have to provide a connection to a Postgres server. I recommend running
-a dedicated server just for tests that is RAM-backed (instead of disk-backed)
-and tuned for performance by removing all data-sync guarantees. This would be a
-horrible idea in production, but in tests it works great, and your tests will go
-⚡️ *fast*.
-
-For example, here's a `docker-compose.yml` file you can use. For more options,
-see the FAQ below.
-
-```yaml
-version: "3.6"
-services:
-  testdb:
-    image: postgres:13
-    environment:
-      POSTGRES_PASSWORD: password
-    restart: unless-stopped
-    volumes:
-      # Uses a tmpfs volume to make tests extremely fast. The data in test
-      # databases is not persisted across restarts, nor does it need to be.
-      - type: tmpfs
-        target: /var/lib/postgresql/data/
-    command:
-      - "postgres"
-      # turn off fsync for speed
-      - "-c"
-      - "fsync=off"
-      # log everything for debugging
-      - "-c"
-      - "log_statement=all"
-    ports:
-      # Entirely up to you what port you want to use while testing.
-      - "5433:5432"
-```
 # Documentation
 
 - [This page, https://github.com/peterldowns/testdb](https://github.com/peterldowns/testdb)
@@ -84,6 +22,32 @@ to be well-organized, and each function has a meaningful docstring, so you
 should be able to explore it quite easily using an LSP plugin, reading the
 code, or clicking through the go.dev docs.
 
+## How does it work?
+Each time a test asks for a fresh database by calling `testdb.New`, testdb will
+check to see if a template database already exists. If not, it creates a new
+database, runs your migrations on it, and then marks it as a template.  Once the
+template exists, it is _very_ fast to create a new database from that template.
+
+testdb only runs migrations one time when your migrations change. The marginal
+cost of a new test that uses the database is just the time to create a clone
+from the template, which is now basically free.
+
+When a test succeeds, the database it used is automatically deleted.
+When a test fails, the database it used is left alive, and the test logs will
+include a connection string you can use to connect to it with `psql` and explore
+what happened.
+
+testdb works with any migration framework, and includes out-of-the-box adaptors
+for the most popular golang frameworks:
+
+- [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
+- [goosemigrator](migrators/goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
+- [dbmatemigrator](migrators/dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
+- [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
+- [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
+
+testdb is concurrency-safe and I encourage you to run your tests in parallel.
+
 ## Install
 
 ```shell
@@ -92,7 +56,7 @@ go get github.com/peterldowns/testdb@latest
 
 ## Quickstart
 
-### Minimum Viable Example
+### Example Test
 
 Here's how you use `testdb.New` in a test to get a database.
 
@@ -112,7 +76,7 @@ func TestMyExample(t *testing.T) {
   }
   // Read the docs below for more information, but you are responsible for
   // supplying a Migrator that will run your migrations.
-  migrator := myMigrator()
+  var m testdb.Migrator = myMigrator()
   // If there is any sort of error, the test will end here using t.Fatal().  No
   // need to check errors, you now have a working database!
   db := testdb.New(t, conf, migrator)
@@ -124,12 +88,12 @@ func TestMyExample(t *testing.T) {
 }
 ```
 
-### Defining Your Test Helper
+### Defining A Helper
 
-It would be crazy to add that whole prelude to each of your tests. Instead, you
-should define a test helper function that calls `testdb.New` with the same
-`testdb.Config` and `testdb.Migrator` each time, and then you should use that
-helper in each of your tests. Here is a an example:
+It would be crazy to add that whole prelude to each of your tests. I recommend
+that you define a test helper function that calls `testdb.New` with the same
+`testdb.Config` and `testdb.Migrator` each time. You should then use this helper
+in your tests. Here is an example:
 
 ```go
 package testhelpers
@@ -152,7 +116,7 @@ func NewDB(t *testing.T) *sql.DB {
     Port:     "5433",
     Options:  "sslmode=disable",
   }
-  var m testdb.Migrator = &someImplementation{}
+  var m testdb.Migrator = myMigrator()
   return testdb.New(t, conf, m)
 }
 ```
@@ -172,24 +136,63 @@ func TestAQuery(t *testing.T) {
 }
 ```
 
-### Running A Postgres Server
+### Running The Postgres Server
+testdb requires you to provide a connection to a Postgres server. I **strongly
+recommend** running a dedicated server just for tests that is RAM-backed
+(instead of disk-backed) and tuned for performance by removing all data-sync
+guarantees. This would be a bad idea in production, but in tests it works great.
+Your tests will go ⚡️ *fast* ⚡️.
 
-You'll need a Postgres server running or the test will fail with a
-complaint that it could not connect to the server to create a new database:
+**Do Not** connect testdb to the same server that
+contains your production data. testdb requires admin privileges to work, and
+creates and deletes databases as part of its operation. You should always use a
+dedicated server for your tests.
+
+Some common methods of running a Postgres server for testdb:
+
+- run Postgres inside Docker / with Docker Compose
+- run Postgres natively, through a binary or package you install
+- run Postgres on a remote server somewhere
+- run Postgres automatically when your test suite runs:
+  - with [ory/dockertest](https://github.com/ory/dockertest/blob/v3/examples/PostgreSQL.md)
+  - with [rubenv/pgtest](https://github.com/rubenv/pgtest)
+  - with [fergusstrange/embedded-postgres](https://github.com/fergusstrange/embedded-postgres)
+
+Here is an example `docker-compose.yml` file you can use to run a RAM-backed
+Postgres server inside of a docker container. For more performance tuning
+options, see the FAQ below.
+
+```yaml
+version: "3.6"
+services:
+  testdb:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: password
+    restart: unless-stopped
+    volumes:
+      # Uses a tmpfs volume to make tests extremely fast. The data in test
+      # databases is not persisted across restarts, nor does it need to be.
+      - type: tmpfs
+        target: /var/lib/postgresql/data/
+    command:
+      - "postgres"
+      - "-c" # turn off fsync for speed
+      - "fsync=off"
+      - "-c" # log everything for debugging
+      - "log_statement=all"
+    ports:
+      # Entirely up to you what port you want to use while testing.
+      - "5433:5432"
+```
+
+If you do not have a server running, or testdb cannot connect to your server,
+you will see a failure message like this one:
 
 ```
 --- FAIL: TestAQuery (0.00s)
     /Users/pd/code/example/example_test.go:170: failed to provision test database template: failed to connect to `host=localhost user=postgres database=`: dial error (dial tcp [fe80::1%lo0]:5433: connect: connection refused)
 ```
-
-testdb does not provide any helpers for running the server. Some common methods:
-
-- run Postgres inside Docker / with Docker Compose
-- run a native Postgres binary
-- connect to a remote server
-- [ory/dockertest](https://github.com/ory/dockertest/blob/v3/examples/PostgreSQL.md)
-- [rubenv/pgtest](https://github.com/rubenv/pgtest)
-- [fergusstrange/embedded-postgres](https://github.com/fergusstrange/embedded-postgres)
 
 ## API
 ### `testdb.New`
@@ -218,7 +221,7 @@ to synchronize, meaning that your migrations will only run one time per test
 package no matter how many tests, or how many packages, you're testing at the
 same time.
 
-Once it creates your brand new fresh test database, it will `t.Log()` the
+Once it creates your brand new fresh test database, testdb will `t.Log()` the
 connection string so that iff your test fails you can connect to the database
 and figure out what happened.
 
@@ -231,13 +234,14 @@ new databases and roles. Most likely you want to connect as the default
 server as described earlier.
 
 ```go
+// config.URL() => "postgres://postgres:password@localhost:5433?sslmode=disable&anotherSetting=value"
 type Config struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Database string
-	Options  string
+	Host     string // "localhost"
+	Port     string // "5433"
+	User     string // "postgres"
+	Password string // "password"
+	Database string // "postgres"
+	Options  string // "sslmode=disable&anotherSetting=value"
 }
 ```
 
@@ -254,8 +258,9 @@ migration frameworks, you can use these right away:
 - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
 - [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
 
-You can also write your own. The interface is relatively simple, only `Hash()`
-and `Migrate()` need to actually do something:
+You can also write your own. The interface only requires you to make `Hash()`
+and `Migrate()` actually do anything, you can leave `Prepare()` and `Verify()`
+as no-op methods.
 
 ```go
 // A Migrator is necessary to provision and verify the database that will be used as as template
@@ -313,10 +318,14 @@ As far as I know, no one has made it this easy to do it though.
 
 ## Rough perf numbers?
 
-Think ~500ms to prepare the template database one time, ~10ms to clone a template.
+If you're using a RAM-backed server and have about a thousand migrations, think
+~500ms to prepare the template database one time, ~10ms to clone a template.
 
-The time to prepare the template depends on your migration strategy and your database schema.
-The time to get a new clone seems pretty constant even for large schemas.
+The time to prepare the template depends on your migration strategy and your
+database schema.
+
+The time to get a new clone seems pretty constant even for databases with large
+schemas.
 
 Everything depends on the speed of your server.
 
@@ -369,8 +378,9 @@ development shell that you can enter with `nix develop` (flakes) or `nix-shell`
 
 If you use VSCode, the repo comes with suggested extensions and settings.
 
-Testing and linting scripts are defined with Just, see the Justfile to see how
-to run those commands manually. There are also Github Actions that will lint and test
-your PRs.
+Testing and linting scripts are defined with
+[Just](https://github.com/casey/just), see the [Justfile](./Justfile) to see how
+to run those commands manually. There are also Github Actions that will lint and
+test your PRs.
 
 Contributions are more than welcome!
