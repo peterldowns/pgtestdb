@@ -92,7 +92,7 @@ func (gm *GolangMigrator) Migrate(
 }
 
 // Prepare is a no-op method.
-func (gm *GolangMigrator) Prepare(
+func (*GolangMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,
@@ -101,7 +101,7 @@ func (gm *GolangMigrator) Prepare(
 }
 
 // Verify is a no-op method.
-func (gm *GolangMigrator) Verify(
+func (*GolangMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,

@@ -112,6 +112,8 @@ linters:
     - typecheck
     - unused
     - whitespace
+    - paralleltest
+    - errname
     - errorlint
     - gosimple
     - unparam

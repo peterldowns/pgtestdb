@@ -12,6 +12,7 @@ import (
 )
 
 func TestVar(t *testing.T) {
+	t.Parallel()
 	x := newMutexCounter()
 	onceInt := once.NewVar[int]()
 	assert.NoFailures(t, func() {
@@ -40,6 +41,7 @@ func TestVar(t *testing.T) {
 }
 
 func TestMap(t *testing.T) {
+	t.Parallel()
 	x := newMutexCounter()
 	onceMap := once.NewMap[string, string]()
 	key := "hello"

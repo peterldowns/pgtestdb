@@ -12,6 +12,7 @@ import (
 )
 
 func TestExecute(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	resp, err := common.Execute(ctx, nil, "echo", "hello world")
 	assert.Nil(t, err)
@@ -19,6 +20,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestExecuteQuoting(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	resp, err := common.Execute(ctx, nil, "bash", "-c", "echo 'hello world'")
 	assert.Nil(t, err)
@@ -26,6 +28,7 @@ func TestExecuteQuoting(t *testing.T) {
 }
 
 func TestExecuteStdin(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	resp, err := common.Execute(ctx, strings.NewReader("hello world"), "cat")
 	assert.Nil(t, err)
@@ -33,6 +36,7 @@ func TestExecuteStdin(t *testing.T) {
 }
 
 func TestExecuteStripsOneTrailingNewline(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	resp, err := common.Execute(ctx, strings.NewReader("hello world\t\n\n"), "cat")
 	assert.Nil(t, err)

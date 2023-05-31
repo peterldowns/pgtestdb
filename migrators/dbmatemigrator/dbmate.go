@@ -115,7 +115,7 @@ func (m *DbmateMigrator) Migrate(
 }
 
 // Prepare is a no-op method.
-func (m *DbmateMigrator) Prepare(
+func (*DbmateMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,
@@ -124,7 +124,7 @@ func (m *DbmateMigrator) Prepare(
 }
 
 // Verify is a no-op method.
-func (m *DbmateMigrator) Verify(
+func (*DbmateMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,
