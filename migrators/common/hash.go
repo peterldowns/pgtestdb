@@ -4,7 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"hash"
+	hashlib "hash"
 	"io/fs"
 	"os"
 )
@@ -31,12 +31,14 @@ func NewRecursiveHash(fields ...HashField) RecursiveHash {
 // contents. This is good for hashing multiple migration files. The interface is slightly
 // easier to use than constructing an md5 hash on your own.
 type RecursiveHash struct {
-	hash.Hash
+	hashlib.Hash
 }
 
 // Add updates the hash with the hash of new content.
 func (h RecursiveHash) Add(bytes []byte) {
-	fmt.Fprintf(h, "%x=%x\n", h.Sum(nil), md5.Sum(bytes))
+	if _, err := fmt.Fprintf(h, "%x=%x\n", h.Sum(nil), md5.Sum(bytes)); err != nil {
+		panic(err)
+	}
 }
 
 // AddField updates the hash with the hash of a new field.

@@ -11,21 +11,38 @@ set positional-arguments
 default:
   just --list
 
-# run the test suite
+# test testdb
 test *args='./...':
   go test -race "$@"
 
-# run the tests for all subpackages
+# test testdb + migrators
 test-all:
   #!/usr/bin/env bash
   go test -race ./... ./migrators/**
 
-# lint the entire codebase
+# lint testdb
 lint *args:
   golangci-lint run --fix --config .golangci.yaml "$@"
+
+# lint testdb + migrators
+lint-all:
+  golangci-lint run --fix --config .golangci.yaml ./migrators/**
+
+# lint nix files
+lint-nix:
   find . -name '*.nix' | xargs nixpkgs-fmt
 
+# tag testdb
 tag:
+  #!/usr/bin/env bash
+  set -e
+  raw="v$(cat VERSION)"
+  commit="${raw}+commit.$(git rev-parse --short HEAD)"
+  git tag "$raw"
+  git tag "$commit"
+
+# tag migrators
+tag-migrators:
   #!/usr/bin/env bash
   set -e
   raw="v$(cat VERSION)"

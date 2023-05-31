@@ -49,6 +49,7 @@ func With(ctx context.Context, db *sql.DB, lockName string, cb func() error) err
 			panic(err)
 		}
 	}()
+	// TODO: why not call cb() with the conn?
 	return cb()
 }
 
@@ -63,6 +64,7 @@ func New(ctx context.Context, conn *sql.Conn, lockName string) (func() error, er
 	}
 	return func() error {
 		qs := fmt.Sprintf("SELECT pg_advisory_unlock(%d)", id)
+		// TODO: why scan the result to success, and not just Exec to unlock?
 		var success bool
 		if err := conn.QueryRowContext(ctx, qs).Scan(&success); err != nil {
 			return err

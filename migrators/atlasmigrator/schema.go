@@ -60,7 +60,7 @@ func (m *SchemaMigrator) Migrate(
 }
 
 // Prepare is a no-op method.
-func (m *SchemaMigrator) Prepare(
+func (*SchemaMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,
@@ -69,7 +69,7 @@ func (m *SchemaMigrator) Prepare(
 }
 
 // Verify is a no-op method.
-func (m *SchemaMigrator) Verify(
+func (*SchemaMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,

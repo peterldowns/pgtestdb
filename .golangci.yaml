@@ -1,9 +1,7 @@
+# https://golangci-lint.run/usage/configuration/
 linters-settings:
-  gocritic:
-    disabled-checks:
-      - ifElseChain
   goimports:
-    local-prefixes: github.com/peterldowns/testdb
+    local-prefixes: github.com/rubenv/sql-migrate
   govet:
     enable-all: true
     disable:
@@ -17,29 +15,35 @@ linters-settings:
   nolintlint:
     allow-unused: false
     allow-leading-space: false
-    allow-no-explanation: [depguard, gochecknoglobals, gochecknoinits]
+    allow-no-explanation:
+      - depguard
+      - gochecknoglobals
+      - gochecknoinits
     require-explanation: true
     require-specific: true
-  # golint is deprecated. The recommended replacement is revive, which is a drop-in replacement
-  # for golint with additional rules and configuration options. For a list of available rules and
-  # configurations, see https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md.
-  # Rules below that are commented out require some minor refactoring before they can be enabled.
+  # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
   revive:
+    enable-all-rules: false
     rules:
       - name: atomic
       - name: blank-imports
+      - name: bare-return
       - name: bool-literal-in-expr
       - name: call-to-gc
-      # - name: confusing-results
+      - name: comment-spacings
+        arguments: ["nolint"]
+      - name: confusing-results
       - name: constant-logical-expr
       - name: context-as-argument
+        arguments:
+          - allowTypesBefore: "*testing.T"
       - name: context-keys-type
-      # - name: deep-exit
-      # - name: defer
-      #   arguments: [[call-chain, loop, method-call, recover]]
+      - name: datarace
+      - name: deep-exit
+      - name: defer
       - name: dot-imports
       - name: duplicated-imports
-      # - name: early-return
+      - name: early-return
       - name: empty-block
       - name: empty-lines
       - name: error-naming
@@ -47,63 +51,70 @@ linters-settings:
       - name: error-strings
       - name: errorf
       - name: exported
-      # - name: flag-parameter
-      # - name: get-return
+      - name: flag-parameter
+      - name: function-result-limit
+        arguments: [3]
+      - name: get-return
       - name: identical-branches
-      # - name: if-return
-      # - name: import-shadowing
+      - name: if-return
       - name: imports-blacklist
+        arguments: []
+      - name: import-shadowing
       - name: increment-decrement
       - name: indent-error-flow
       - name: modifies-parameter
       - name: modifies-value-receiver
+      - name: nested-structs
       - name: package-comments
       - name: range
       - name: range-val-address
       - name: range-val-in-closure
       - name: receiver-naming
+      - name: redefines-builtin-id
       - name: string-format
       - name: string-of-int
       - name: struct-tag
-      # - name: superfluous-else
+      - name: superfluous-else
+      - name: time-equal
       - name: time-naming
       - name: unconditional-recursion
       - name: unexported-naming
       - name: unexported-return
+      - name: unhandled-error
       - name: unnecessary-stmt
       - name: unreachable-code
       - name: unused-parameter
-      # - name: unused-receiver
+      - name: unused-receiver
+      - name: use-any
+      - name: useless-break
       - name: var-declaration
-      - name: var-naming
       - name: waitgroup-by-value
 run:
   tests: true
   timeout: 1m
+# https://golangci-lint.run/usage/linters/
 linters:
   disable-all: true
   enable:
     - asciicheck
     - depguard
     - errcheck
-    - errorlint
     - exhaustive
-    - gochecknoglobals
-    - gochecknoinits
     - gocritic
     - gofmt
     - gofumpt
     - goimports
-    - gosimple
     - govet
     - ineffassign
     - nolintlint
     - revive
     - staticcheck
     - typecheck
-    - unparam
     - unused
     - whitespace
+    - errorlint
+    - gosimple
+    - unparam
 issues:
   exclude:
     # Allow shadowing of `err` because it's so common

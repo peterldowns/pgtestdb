@@ -59,7 +59,7 @@ func (sm *SQLMigrator) Migrate(
 }
 
 // Prepare is a no-op method.
-func (sm *SQLMigrator) Prepare(
+func (*SQLMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,
@@ -68,7 +68,7 @@ func (sm *SQLMigrator) Prepare(
 }
 
 // Verify is a no-op method.
-func (sm *SQLMigrator) Verify(
+func (*SQLMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,

@@ -84,7 +84,7 @@ func (gm *GooseFSMigrator) Migrate(
 }
 
 // Prepare is a no-op method.
-func (gm *GooseFSMigrator) Prepare(
+func (*GooseFSMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,
@@ -93,7 +93,7 @@ func (gm *GooseFSMigrator) Prepare(
 }
 
 // Verify is a no-op method.
-func (gm *GooseFSMigrator) Verify(
+func (*GooseFSMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,

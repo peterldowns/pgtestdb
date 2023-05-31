@@ -60,7 +60,7 @@ func (m *DirMigrator) Migrate(
 }
 
 // Prepare is a no-op method.
-func (m *DirMigrator) Prepare(
+func (*DirMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,
@@ -69,7 +69,7 @@ func (m *DirMigrator) Prepare(
 }
 
 // Verify is a no-op method.
-func (m *DirMigrator) Verify(
+func (*DirMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
 	_ testdb.Config,

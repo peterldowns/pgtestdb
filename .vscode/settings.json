@@ -17,7 +17,7 @@
   "go.lintFlags": ["--config=${workspaceFolder}/.golangci.yaml", "--fast", "--fix"],
   "go.lintOnSave": "package",
   "go.testEnvVars": {},
-  "go.testFlags": ["-tags", "manual", "-race"],
+  "go.testFlags": ["-tags", "manual"],
   "go.coverageOptions": "showCoveredCodeOnly",
   "go.buildOnSave": "off",
   "go.vetOnSave": "off",
