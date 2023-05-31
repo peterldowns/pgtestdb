@@ -12,12 +12,18 @@ services:
         target: /var/lib/postgresql/data/
     command:
       - "postgres"
-      # turn off fsync for speed
       - "-c"
       - "fsync=off"
-      # log everything for debugging
+      - "-c"
+      - "shared_buffers=1024MB"
+      - "-c"
+      - "synchronous_commit=off"
+      - "-c"
+      - "full_page_writes=off"
       - "-c"
       - "log_statement=all"
+      - "-c"
+      - "max_connections=1000"
     ports:
       - "5433:5432"
 
