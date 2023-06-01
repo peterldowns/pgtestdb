@@ -15,9 +15,9 @@ import (
 
 const (
 	// TestUser is the username for connecting to each test database.
-	TestUser = "testdbuser"
+	TestUser = "pgtdbuser"
 	// TestPassword is the password for connecting to each test database.
-	TestPassword = "password"
+	TestPassword = "pgtdbpass"
 )
 
 // Config contains the details needed to connect to a postgres server/database.
@@ -96,14 +96,14 @@ type Migrator interface {
 func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
-	baseDB, err := conf.connect() // TODO: allow dialect to support non-pgx
+	baseDB, err := conf.connect()
 	if err != nil {
 		t.Fatalf("could not connect to database: %s", err)
 		return nil // unreachable
 	}
 
 	if err := ensureUser(ctx, baseDB); err != nil {
-		t.Fatalf("could not create testdb user: %s", err)
+		t.Fatalf("could not create pgtestdb user: %s", err)
 	}
 
 	template, err := getOrCreateTemplate(ctx, baseDB, conf, migrator)
@@ -113,14 +113,14 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 
 	instance, err := createInstance(ctx, baseDB, *template)
 	if err != nil {
-		t.Fatalf("failed to create testdb: %s", err)
+		t.Fatalf("failed to create instance: %s", err)
 		return nil // unreachable
 	}
 	t.Logf("testdbconf: %s", instance.URL())
 
 	db, err := instance.connect()
 	if err != nil {
-		t.Fatalf("failed to connect to testdb: %s", err)
+		t.Fatalf("failed to connect to instance: %s", err)
 		return nil // unreachable
 	}
 	t.Cleanup(func() {
@@ -143,7 +143,7 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	// Even if the template previously existed, verify that it was created
 	// successfully.
 	// This way if there was ever a mistake or problem creating the template, a
-	// test will find out at the site of `testdb.New` rather than later in the
+	// test will find out at the site of `pgtestdb.New` rather than later in the
 	// test due to unexpected content in the database.
 	//
 	// Assumption: verification is >>> faster than performing the migrations,
@@ -282,22 +282,6 @@ func ensureTemplate(
 	query = fmt.Sprintf(`CREATE DATABASE "%s" OWNER "%s"`, state.conf.Database, state.conf.User)
 	if _, err := conn.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("failed to create template %s: %w", state.conf.Database, err)
-	}
-
-	// Grant all privileges on the template to the test user.
-	for _, query = range []string{
-		fmt.Sprintf(`GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s"`, state.conf.Database, state.conf.User),
-		fmt.Sprintf(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO "%s"`, state.conf.User),
-		fmt.Sprintf(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO "%s"`, state.conf.User),
-	} {
-		if _, err := conn.ExecContext(ctx, query); err != nil {
-			return fmt.Errorf(
-				"failed to grant privileges on template %s to role %s: %w",
-				state.conf.Database,
-				state.conf.User,
-				err,
-			)
-		}
 	}
 
 	// Connect to the template.
