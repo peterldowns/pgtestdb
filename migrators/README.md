@@ -1,6 +1,6 @@
 # migrators
 
-testdb works with any migration framework, and includes out-of-the-box
+pgtestdb works with any migration framework, and includes out-of-the-box
 adaptors for the most popular golang frameworks:
 
 - [golangmigrator](./golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
