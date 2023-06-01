@@ -1,9 +1,9 @@
 # 🧪 testdb
 
-![Release](https://img.shields.io/static/v1?label=latest%20version&message=v0.0.4&color=blueviolet)
-![Golang](https://img.shields.io/static/v1?label=golang&message=1.18%2B&color=blue)
-![Issues](https://shields.io/github/issues/peterldowns/testdb)
-![Stars](https://shields.io/github/stars/peterldowns/testdb?style=social)
+![Latest Version](https://badgers.space/badge/latest%20version/v0.0.4/blueviolet?corner_radius=m)
+![Golang](https://badgers.space/badge/golang/1.18+/blue?corner_radius=m)
+[![CI](https://badgers.space/github/checks/peterldowns/testdb/main?corner_radius=m&label=CI)](https://github.com/peterldowns/testdb/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/peterldowns/testdb)](https://goreportcard.com/report/github.com/peterldowns/testdb)
 
 testdb makes it cheap and easy to create ephemeral Postgres databases for your
 golang tests. It uses [template
@@ -61,26 +61,36 @@ go get github.com/peterldowns/testdb@latest
 Here's how you use `testdb.New` in a test to get a database.
 
 ```go
+
+// testdb uses the `sql` interfaces to interact with Postgres, you just have to
+// bring your own driver. Here we're using the PGX driver in stdlib mode, which
+// registers a "pgx" driver.
+import (
+  // ...
+  _ "github.com/jackc/pgx/v5/stdlib"
+  _ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver
+  // ...
+)
+
 func TestMyExample(t *testing.T) {
   // testdb is concurrency safe, go crazy, run a lot of tests at once
   t.Parallel()
-  // Connection details for the postgres server. You should connect as an admin
-  // user. Use a dedicated server explicitly for tests, do NOT use your
-  // production database.
+  // You should connect as an admin user. Use a dedicated server explicitly
+  // for tests, do NOT use your production database.
   conf := testdb.Config{
-    User:     "postgres",
-    Password: "password",
-    Host:     "localhost",
-    Port:     "5433",
-    Options:  "sslmode=disable",
+    DriverName: "pgx",
+    User:       "postgres",
+    Password:   "password",
+    Host:       "localhost",
+    Port:       "5433",
+    Options:    "sslmode=disable",
   }
-  // Read the docs below for more information, but you are responsible for
-  // supplying a Migrator that will run your migrations.
-  var m testdb.Migrator = myMigrator()
-  // If there is any sort of error, the test will end here using t.Fatal().  No
-  // need to check errors, you now have a working database!
+  // You'll want to use a real migrator, this is just an example. See
+  // the rest of the docs for more information.
+  var migrator testdb.Migrator = testdb.NoopMigrator{}
   db := testdb.New(t, conf, migrator)
-  // run some queries, do whatever, etc.
+  // If there is any sort of error, the test will have ended with t.Fatal().
+  // No need to check errors! Go ahead and use the database.
   var message string
   err := db.QueryRow("select 'hello world'").Scan(&message)
   assert.Nil(t, err)
@@ -96,28 +106,22 @@ that you define a test helper function that calls `testdb.New` with the same
 in your tests. Here is an example:
 
 ```go
-package testhelpers
-
-import (
-  "database/sql"
-  "testing"
-
-  "github.com/peterldowns/testdb"
-)
-
 // NewDB is a helper that returns an open connection to a unique and isolated
 // test database, fully migrated and ready for you to query.
 func NewDB(t *testing.T) *sql.DB {
-  t.Helper() // makes sure error logs are backtraced appropriately in test output
+  t.Helper()
   conf := testdb.Config{
-    User:     "postgres",
-    Password: "password",
-    Host:     "localhost",
-    Port:     "5433",
-    Options:  "sslmode=disable",
+    DriverName: "pgx",
+    User:       "postgres",
+    Password:   "password",
+    Host:       "localhost",
+    Port:       "5433",
+    Options:    "sslmode=disable",
   }
-  var m testdb.Migrator = myMigrator()
-  return testdb.New(t, conf, m)
+  // You'll want to use a real migrator, this is just an example. See the rest
+  // of the docs for more information.
+  var migrator testdb.Migrator = testdb.NoopMigrator{}
+  return testdb.New(t, conf, migrator)
 }
 ```
 
@@ -127,7 +131,7 @@ a test database, or the test will fail and stop executing.
 ```go
 func TestAQuery(t *testing.T) {
   t.Parallel()
-  db := testhelpers.NewDB(t) // this is the helper we just defined above
+  db := NewDB(t) // this is the helper defined above
 
   var result string
   err := db.QueryRow("SELECT 'hello world'").Scan(&result)
@@ -194,6 +198,62 @@ you will see a failure message like this one:
     /Users/pd/code/example/example_test.go:170: failed to provision test database template: failed to connect to `host=localhost user=postgres database=`: dial error (dial tcp [fe80::1%lo0]:5433: connect: connection refused)
 ```
 
+### Choosing A Driver
+
+testdb will work with [pgx](https://github.com/jackc/pgx/) or
+[lib/pq](https://github.com/lib/pq) or any other [database/sql
+driver](https://pkg.go.dev/database/sql/driver). I recommend using the pgx
+driver unless you have a good reason to remain on lib/pq. 
+
+As with any sql driver,  make sure to import the driver so that it registers
+itself. Then, pass its name in the `testdb.Config`:
+
+```go
+import (
+  // Makes both drivers available as an example.
+  _ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver
+  _ "github.com/lib/pq"              // registers the "postgres" driver
+)
+
+func TestWithLibPqDriver(t *testing.T) {
+  t.Parallel()
+  pqConf := testdb.Config{
+    DriverName: "postgres", // uses the lib/pq driver
+    User:       "postgres",
+    Password:   "password",
+    Host:       "localhost",
+    Port:       "5433",
+    Options:    "sslmode=disable",
+  }
+  migrator := testdb.NoopMigrator{}
+  db := testdb.New(t, pqConf, migrator)
+
+  var message string
+  err := db.QueryRow("select 'hello world'").Scan(&message)
+  assert.Nil(t, err)
+  assert.Equal(t, "hello world", message)
+}
+
+func TestWithPgxStdlibDriver(t *testing.T) {
+  t.Parallel()
+  pgxConf := testdb.Config{
+    DriverName: "pgx", // uses the pgx/stdlib driver
+    User:       "postgres",
+    Password:   "password",
+    Host:       "localhost",
+    Port:       "5433",
+    Options:    "sslmode=disable",
+  }
+  migrator := testdb.NoopMigrator{}
+  db := testdb.New(t, pgxConf, migrator)
+
+  var message string
+  err := db.QueryRow("select 'hello world'").Scan(&message)
+  assert.Nil(t, err)
+  assert.Equal(t, "hello world", message)
+}
+```
+
 ## API
 ### `testdb.New`
 
@@ -236,12 +296,13 @@ server as described earlier.
 ```go
 // config.URL() => "postgres://postgres:password@localhost:5433?sslmode=disable&anotherSetting=value"
 type Config struct {
-	Host     string // "localhost"
-	Port     string // "5433"
-	User     string // "postgres"
-	Password string // "password"
-	Database string // "postgres"
-	Options  string // "sslmode=disable&anotherSetting=value"
+  Driver   string // "pgx" (pgx) or "postgres" (lib/pq)
+  Host     string // "localhost"
+  Port     string // "5433"
+  User     string // "postgres"
+  Password string // "password"
+  Database string // "postgres"
+  Options  string // "sslmode=disable&anotherSetting=value"
 }
 ```
 
@@ -266,41 +327,54 @@ as no-op methods.
 // A Migrator is necessary to provision and verify the database that will be used as as template
 // for each test.
 type Migrator interface {
-	// Hash should return a unique identifier derived from the state of the database
-	// after it has been fully migrated. For instance, it may return a hash of all
-	// of the migration names and contents.
-	//
-	// testdb will use the returned Hash to identify a template database. If a
-	// Migrator returns a Hash that has already been used to create a template
-	// database, it is assumed that the database need not be recreated since it
-	// would result in the same schema and data.
-	Hash() (string, error)
+  // Hash should return a unique identifier derived from the state of the database
+  // after it has been fully migrated. For instance, it may return a hash of all
+  // of the migration names and contents.
+  //
+  // testdb will use the returned Hash to identify a template database. If a
+  // Migrator returns a Hash that has already been used to create a template
+  // database, it is assumed that the database need not be recreated since it
+  // would result in the same schema and data.
+  Hash() (string, error)
 
-	// Prepare should perform any plugin or extension installations necessary to
-	// make the database ready for the migrations. For instance, you may want to
-	// enable certain extensions like `trigram` or `pgcrypto`, or creating or
-	// altering certain roles and permissions.
-	// Prepare will be given a *sql.DB connected to the template database.
-	Prepare(context.Context, *sql.DB, Config) error
+  // Prepare should perform any plugin or extension installations necessary to
+  // make the database ready for the migrations. For instance, you may want to
+  // enable certain extensions like `trigram` or `pgcrypto`, or creating or
+  // altering certain roles and permissions.
+  // Prepare will be given a *sql.DB connected to the template database.
+  Prepare(context.Context, *sql.DB, Config) error
 
-	// Migrate is a function that actually performs the schema and data
-	// migrations to provision a template database. The connection given to this
-	// function is to an entirely new, empty, database. Migrate will be called
-	// only once, when the template database is being created.
-	Migrate(context.Context, *sql.DB, Config) error
+  // Migrate is a function that actually performs the schema and data
+  // migrations to provision a template database. The connection given to this
+  // function is to an entirely new, empty, database. Migrate will be called
+  // only once, when the template database is being created.
+  Migrate(context.Context, *sql.DB, Config) error
 
-	// Verify is called each time you ask for a new test database instance. It
-	// should be cheaper than the call to Migrate(), and should return nil iff
-	// the database is in the correct state. An example implementation would be
-	// to check that all the migrations have been marked as applied, and
-	// otherwise return an error.
-	Verify(context.Context, *sql.DB, Config) error
+  // Verify is called each time you ask for a new test database instance. It
+  // should be cheaper than the call to Migrate(), and should return nil iff
+  // the database is in the correct state. An example implementation would be
+  // to check that all the migrations have been marked as applied, and
+  // otherwise return an error.
+  Verify(context.Context, *sql.DB, Config) error
 }
 ```
 If you're writing your own `Migrator`, I recommend you use the existing ones
 as examples. Most migrators need to do some kind of file/directory hashing in
 order to implement `Hash()` &mdash; you may want to use
 [the helpers in the `common` subpackage](migrators/common).
+
+For example and testing purposes, there is a no-op migrator that does
+nothing at all.
+
+```go
+// NoopMigrator fulfills the Migrator interface but does absolutely nothing.
+// You can use this to get empty databases in your tests, or if you are trying
+// out testdb and aren't sure which migrator to use yet.
+//
+// For more documentation on migrators, see
+// https://github.com/peterldowns/testdb#testdbmigrator
+type NoopMigrator struct{}
+```
 
 # FAQ
 
@@ -359,15 +433,15 @@ that you want to be mocking in your tests, and most modern applications have a
 large amount of logic in Postgres that is hard to mock anyway.
 
 ## How does this play out in a real company?
-At [Pipe](https://pipe.com), we had thousands of tests using a similar package
-to get template-based databases for each test. The whole test suite an in under
+[Pipe](https://pipe.com) had thousands of tests using a similar package
+to get template-based databases for each test. The whole test suite ran in under
 a few minutes on reasonably-priced CI machines, and individual packages/tests
 ran fast enough on local development machines that developers were happy to add
 new database-backed tests without worrying about the cost.
 
 I believe that testdb and a ram-backed Postgres server is fast enough to be
-worth it.  If you try it out and don't think so, please open an issue &mdash; I'd be
-very interested to see if we can make it work for you, too.
+worth it. If you try it out and don't think so, please open an issue &mdash;
+I'd be very interested to see if I can make it work for you, too.
 
 ## How can I contribute?
 

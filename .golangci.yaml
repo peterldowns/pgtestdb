@@ -10,6 +10,9 @@ linters-settings:
     list-type: blacklist
     include-go-root: true
     include-go-std-lib: true
+    packages:
+      - "github.com/stretchr/testify/require"
+      - "github.com/stretchr/testify/assert"
   exhaustive:
     default-signifies-exhaustive: true
   nolintlint:

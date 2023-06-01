@@ -1,3 +1,5 @@
+// withdb is a simplified way of creating test databases, used to test the
+// internal packages that testdb depends on.
 package withdb
 
 import (
@@ -8,7 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for postgres
+	"github.com/peterldowns/testdb/internal/multierr"
 )
 
 // WithDB is a helper for writing postgres-backed tests. It will:
@@ -20,47 +22,52 @@ import (
 //
 // This is designed to be an internal helper for testing other database-related
 // packages, and should not be relied upon externally.
-//
-// For a package that will automatically create a database with migrations
-// applied, check out `pkg/testdb`.
-func WithDB(ctx context.Context, cb func(*sql.DB)) error {
-	db, err := sql.Open("pgx", connectionString("postgres"))
+func WithDB(ctx context.Context, driverName string, cb func(*sql.DB) error) (final error) {
+	db, err := sql.Open(driverName, connectionString("postgres"))
 	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	testDBName := randomID("test_")
-	query := fmt.Sprintf("CREATE DATABASE %s", testDBName)
-	if _, err := db.ExecContext(ctx, query); err != nil {
-		return fmt.Errorf("could not create new database template: %w", err)
-	}
-	testDB, err := sql.Open("pgx", connectionString(testDBName))
-	if err != nil {
-		return err
+		return fmt.Errorf("withdb(postgres) failed to open: %w", err)
 	}
 	defer func() {
-		if err := testDB.Close(); err != nil {
-			panic(err)
-		}
-		query := fmt.Sprintf("DROP DATABASE %s", testDBName)
-		if _, err = db.ExecContext(ctx, query); err != nil {
-			panic(err)
+		if err := db.Close(); err != nil {
+			err = fmt.Errorf("withdb(postgres) failed to close: %w", err)
+			final = multierr.Join(final, err)
 		}
 	}()
 
-	cb(testDB)
-	return nil
+	testDBName, err := randomID("test_")
+	if err != nil {
+		return fmt.Errorf("withdb: random name failed: %w", err)
+	}
+	query := fmt.Sprintf("CREATE DATABASE %s", testDBName)
+	if _, err := db.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("withdb(%s) failed to create: %w", testDBName, err)
+	}
+	testDB, err := sql.Open("pgx", connectionString(testDBName))
+	if err != nil {
+		return fmt.Errorf("withdb(%s) failed to open: %w", testDBName, err)
+	}
+	defer func() {
+		if err := testDB.Close(); err != nil {
+			err = fmt.Errorf("withdb(%s) failed to close: %w", testDBName, err)
+			final = multierr.Join(final, err)
+		}
+		query := fmt.Sprintf("DROP DATABASE %s", testDBName)
+		if _, err = db.ExecContext(ctx, query); err != nil {
+			err = fmt.Errorf("withdb(%s) failed to drop: %w", testDBName, err)
+			final = multierr.Join(final, err)
+		}
+	}()
+	return cb(testDB)
 }
 
-func randomID(prefix string) string {
+func randomID(prefix string) (string, error) {
 	bytes := make([]byte, 32)
 	hash := md5.New()
 	_, err := rand.Read(bytes)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(hash.Sum(bytes)))
+	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(hash.Sum(bytes))), nil
 }
 
 func connectionString(dbname string) string {

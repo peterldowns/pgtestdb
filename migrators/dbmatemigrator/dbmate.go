@@ -37,7 +37,8 @@ func WithDir(dir ...string) Option {
 	}
 }
 
-// WithTableName specifies the name of the table in which dbmate will stor
+// WithTableName specifies the name of the table in which dbmate will store its
+// migration records.
 //
 // Default: `"schema_migrations"`
 //

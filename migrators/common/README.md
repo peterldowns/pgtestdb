@@ -10,9 +10,9 @@ common contains helpers for use in different implementations of the `Migrator` i
 //
 // Examples:
 //
-//	HashFiles(nil, "0001_initial.sql")
-//	HashFiles(nil, "0001_initial.sql", "0002_users.up.sql")
-//	HashDirs(embeddedFS, "migrations/0001_initial.sql")
+//   HashFiles(nil, "0001_initial.sql")
+//   HashFiles(nil, "0001_initial.sql", "0002_users.up.sql")
+//   HashDirs(embeddedFS, "migrations/0001_initial.sql")
 func HashFiles(base fs.FS, paths ...string) (string, error)
 ```
 
@@ -23,9 +23,9 @@ func HashFiles(base fs.FS, paths ...string) (string, error)
 //
 // Examples:
 //
-//	HashDirs(nil, "*.sql", "migrations")
-//	HashDirs(nil, "*.sql", "migrations/old", "migrations/current")
-//	HashDirs(embeddedFS, "*.sql", ".")
+//   HashDirs(nil, "*.sql", "migrations")
+//   HashDirs(nil, "*.sql", "migrations/old", "migrations/current")
+//   HashDirs(embeddedFS, "*.sql", ".")
 func HashDirs(base fs.FS, pattern string, dirs ...string) (string, error)
 ```
 
@@ -61,7 +61,7 @@ func NewRecursiveHash(fields ...HashField) (RecursiveHash, error)
 //
 // Examples:
 //
-//	Execute(ctx, nil, "echo", "hello", "world"
-//	Execute(ctx, nil, "bash", "-c", "echo 'hello world'"
+//   Execute(ctx, nil, "echo", "hello", "world"
+//   Execute(ctx, nil, "bash", "-c", "echo 'hello world'"
 func Execute(ctx context.Context, stdin io.Reader, program string, args ...string) (string, error)
 ```

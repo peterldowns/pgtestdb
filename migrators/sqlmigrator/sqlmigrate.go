@@ -10,6 +10,13 @@ import (
 	"github.com/peterldowns/testdb/migrators/common"
 )
 
+// New returns a [SQLMigrator], which is a testdb.Migrator that uses sql-migrate
+// to perform migrations.
+//
+// `source` and `migrationSet` are both types defined by sql-migrate, for more
+// information see their documentation.
+//
+// https://github.com/rubenv/sql-migrate#as-a-library
 func New(source migrate.MigrationSource, migrationSet *migrate.MigrationSet) *SQLMigrator {
 	if migrationSet == nil {
 		migrationSet = &migrate.MigrationSet{}
@@ -20,6 +27,7 @@ func New(source migrate.MigrationSource, migrationSet *migrate.MigrationSet) *SQ
 	}
 }
 
+// SQLMigrator is a testdb.Migrator that uses sql-migrate to perform migrations.
 type SQLMigrator struct {
 	Source       migrate.MigrationSource
 	MigrationSet *migrate.MigrationSet
@@ -30,15 +38,11 @@ func (sm *SQLMigrator) Hash() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Include settings/values in the hash that affect the resulting schema of the database,
+	// Include settings/values in the hash that affect the resulting schema of
+	// the database,
 	hash := common.NewRecursiveHash(
 		common.Field("TableName", sm.MigrationSet.TableName),
 		common.Field("SchemaName", sm.MigrationSet.SchemaName),
-		// DisableCreateTable is broken for MigrationSet instances, see
-		// https://github.com/rubenv/sql-migrate/pull/242 Once that PR is merged
-		// and a new release is created, I can bump this repository's
-		// dependencies and uncomment this line.
-		// common.Field("DisableCreateTable", sm.MigrationSet.DisableCreateTable),
 	)
 	// Include the contents of the Up migrations.
 	for _, migration := range migrations {
@@ -49,6 +53,7 @@ func (sm *SQLMigrator) Hash() (string, error) {
 	return hash.String(), nil
 }
 
+// Migrate runs migrationSet.Exec() to migrate the template database.
 func (sm *SQLMigrator) Migrate(
 	_ context.Context,
 	db *sql.DB,

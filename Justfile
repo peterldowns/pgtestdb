@@ -18,7 +18,7 @@ test *args='./...':
 # test testdb + migrators
 test-all:
   #!/usr/bin/env bash
-  go test -race ./... ./migrators/**
+  go test -race ./... ./migrators/*/
 
 # lint testdb
 lint *args:
@@ -26,11 +26,29 @@ lint *args:
 
 # lint testdb + migrators
 lint-all:
-  golangci-lint run --fix --config .golangci.yaml ./migrators/**
+  golangci-lint run --fix --config .golangci.yaml ./migrators/*/
 
 # lint nix files
 lint-nix:
   find . -name '*.nix' | xargs nixpkgs-fmt
+
+tidy:
+  #!/usr/bin/env bash
+  go mod tidy
+  for subdir in ./migrators/*/; do
+    pushd $subdir
+    go mod tidy
+    go get -u -t github.com/peterldowns/testdb@none
+    go get -u -t github.com/peterldowns/testdb@latest
+    go mod tidy
+    popd
+  done
+  go mod tidy
+  rm -f go.work.sum
+  go work sync
+  go mod tidy
+
+  
 
 # tag testdb
 tag:

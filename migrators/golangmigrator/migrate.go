@@ -53,9 +53,9 @@ func New(migrationsDir string, opts ...Option) *GolangMigrator {
 
 // GolangMigrator is a testdb.Migrator that uses golang-migrate to perform migrations.
 //
-// Because we must be able to hash the migrations to create a unique template
-// database, this implementation only supports reading migration files from disk
-// or an embedded filesystem.
+// Because Hash() requires calculating a unique hash based on the contents of
+// the migrations, database, this implementation only supports reading migration
+// files from disk or an embedded filesystem.
 //
 // GolangMigrator does not perform any Verify() or Prepare() logic.
 type GolangMigrator struct {

@@ -14,37 +14,42 @@ being used. Here's an example:
 
 ```go
 func TestSQLMigratorFromDisk(t *testing.T) {
-	migrations := &migrate.FileMigrationSource{Dir: "migrations"}
-	sm := sqlmigrator.New(migrations, &migrate.MigrationSet{})
-	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
-	}, sm)
-	assert.NotEqual(t, nil, db)
+  sm := sqlmigrator.New(&migrate.FileMigrationSource{
+    Dir: "migrations",
+  }, nil)
+  db := testdb.New(t, testdb.Config{
+    DriverName: "pgx",
+    Host:       "localhost",
+    User:       "postgres",
+    Password:   "password",
+    Port:       "5433",
+    Options:    "sslmode=disable",
+  }, sm)
+  assert.NotEqual(t, nil, db)
 }
 
 //go:embed migrations/*.sql
 var exampleFS embed.FS
 
 func TestSQLMigratorFromFSWithSomeConfiguration(t *testing.T) {
-	migrations := &migrate.EmbedFileSystemMigrationSource{
-		FileSystem: exampleFS,
-		Root:       "migrations",
-	}
-	sm := sqlmigrator.New(migrations, &migrate.MigrationSet{
-		TableName:  "example_sql_migrations",
-		SchemaName: "example_schema",
-	})
-	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
-	}, sm)
-	assert.NotEqual(t, nil, db)
+  sm := sqlmigrator.New(
+    &migrate.EmbedFileSystemMigrationSource{
+      FileSystem: exampleFS,
+      Root:       "migrations",
+    },
+    &migrate.MigrationSet{
+      SchemaName: "altschema",
+      TableName:  "alt_migrations_table_name",
+    },
+  )
+  db := testdb.New(t, testdb.Config{
+    DriverName: "pgx",
+    Host:       "localhost",
+    User:       "postgres",
+    Password:   "password",
+    Port:       "5433",
+    Options:    "sslmode=disable",
+  }, sm)
+  assert.NotEqual(t, nil, db)
 }
 ```

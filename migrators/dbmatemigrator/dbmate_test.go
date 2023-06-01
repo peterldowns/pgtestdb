@@ -5,6 +5,7 @@ import (
 	"embed"
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
@@ -21,11 +22,12 @@ func TestDbmateMigratorWithOptions(t *testing.T) {
 		dbmatemigrator.WithTableName("dbmate_migrations_example"),
 	)
 	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}, m)
 	assert.NotEqual(t, nil, db)
 
@@ -67,11 +69,12 @@ func TestDbmateMigratorWithFS(t *testing.T) {
 		dbmatemigrator.WithFS(migrationsFS),
 	)
 	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}, m)
 	assert.NotEqual(t, nil, db)
 
@@ -109,11 +112,12 @@ func TestDbmateMigratorWithDefaults(t *testing.T) {
 	// and store the results in the "schema_migrations" table.
 	m := dbmatemigrator.New()
 	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}, m)
 	assert.NotEqual(t, nil, db)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
@@ -17,11 +18,12 @@ func TestSchemaMigrator(t *testing.T) {
 
 	m := atlasmigrator.NewSchemaMigrator("schema.hcl")
 	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}, m)
 	assert.NotEqual(t, nil, db)
 

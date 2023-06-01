@@ -73,8 +73,8 @@ func TestMap(t *testing.T) {
 	check.Equal(t, 1, x.Read())
 }
 
-// mutexCounter is a concurrency-safe counter that we need to test that our
-// other code is actually concurrency safe.
+// mutexCounter is a concurrency-safe counter needed for testing that the other
+// "concurrency-safe" code is actually, well, concurrency-safe.
 type mutexCounter struct {
 	mu     *sync.RWMutex
 	number int

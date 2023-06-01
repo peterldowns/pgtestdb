@@ -1,4 +1,4 @@
-// safeonce contains helpers for constructing type-safe, concurrency-safe values
+// once contains helpers for constructing type-safe, concurrency-safe values
 // that are only ever initialized once, and can potentially return an error.
 package once
 
@@ -14,15 +14,8 @@ type Map[K comparable, V any] interface {
 	Get(K) (*V, error)
 }
 
-// Var is a type-safe and concurrency-safe wrapper for a value that is
-// initialized a single time.
-type Var[T any] interface {
-	Set(func() (*T, error)) (*T, error)
-	Get() (*T, error)
-}
-
-// NewMap returns a type-safe and concurrency-safe map of keys that
-// can each be initialized a single time.
+// NewMap returns a [Map], a type-safe and concurrency-safe implementation of a
+// map where each entry is initialized a single time.
 func NewMap[K comparable, V any]() Map[K, V] {
 	return &smap[K, V]{}
 }
@@ -56,6 +49,19 @@ func (sm *smap[K, V]) Get(key K) (*V, error) {
 	return state.data, state.err
 }
 
+// Var is a type-safe and concurrency-safe wrapper for a value that is
+// initialized a single time.
+type Var[T any] interface {
+	// Set initializes the var at most one time, and returns the result.
+	// If K has not yet been initialized, the result will be (<nil>, <nil>).
+	Set(func() (*T, error)) (*T, error)
+	// Get returns the initialized result. If the var has not yet been
+	// initialized, the result will be (<nil>, <nil>)
+	Get() (*T, error)
+}
+
+// NewVar returns a [Var], a type-safe and concurrency-safe wrapper for a value
+// that is initialized a single time.
 func NewVar[T any]() Var[T] {
 	return &svar[T]{}
 }
@@ -80,16 +86,12 @@ func (sv *svar[T]) withWriteLock(f func()) {
 }
 
 func (sv *svar[T]) Set(f func() (*T, error)) (*T, error) {
-	var x *T
-	var e error
-	sv.withWriteLock(func() {
-		sv.once.Do(func() {
+	sv.once.Do(func() {
+		sv.withWriteLock(func() {
 			sv.data, sv.err = f()
 		})
-		x = sv.data
-		e = sv.err
 	})
-	return x, e
+	return sv.Get()
 }
 
 func (sv *svar[T]) Get() (*T, error) {

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
@@ -24,15 +25,15 @@ func TestMigrateFromEmbeddedFS(t *testing.T) {
 	)
 
 	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}, gm)
 	assert.NotEqual(t, nil, db)
 
-	// Make sure we ran both migrations.
 	assert.NoFailures(t, func() {
 		var version int
 		err := db.QueryRowContext(ctx, "select version from schema_migrations").Scan(&version)
@@ -66,15 +67,15 @@ func TestMigrateFromDisk(t *testing.T) {
 	ctx := context.Background()
 	gm := golangmigrator.New("migrations")
 	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}, gm)
 	assert.NotEqual(t, nil, db)
 
-	// Make sure we ran both migrations.
 	assert.NoFailures(t, func() {
 		var version int
 		err := db.QueryRowContext(ctx, "select version from schema_migrations").Scan(&version)

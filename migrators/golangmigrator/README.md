@@ -6,11 +6,13 @@ go get github.com/peterldowns/testdb/migrators/golangmigrator@latest
 
 golangmigrator provides a migrator that can be used out of the box with projects
 that use [golang-migrate/migrate](https://github.com/golang-migrate/migrate) for
-migrations. Because we must be able to hash the migrations to create a unique
-template database, this implementation does not support other migration
-sources..
+migrations.
 
-You can configure the migrations directory, and the filesystem being used.
+Because `Hash()` requires calculating a unique hash based on the contents of
+the migrations, this implementation only supports reading migration
+files from disk or an embedded filesystem.
+
+You can configure the migrations directory and the filesystem being used.
 Here's an example:
 
 ```go
@@ -18,30 +20,30 @@ Here's an example:
 var exampleFS embed.FS
 
 func TestMigrateFromEmbeddedFS(t *testing.T) {
-	gm := golangmigrator.New(
-		"migrations",
-		golangmigrator.WithFS(exampleFS),
-	)
+  gm := golangmigrator.New(
+    "migrations",
+    golangmigrator.WithFS(exampleFS),
+  )
 
-	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
-	}, gm)
-	assert.NotEqual(t, nil, db)
+  db := testdb.New(t, testdb.Config{
+    Host:     "localhost",
+    User:     "postgres",
+    Password: "password",
+    Port:     "5433",
+    Options:  "sslmode=disable",
+  }, gm)
+  assert.NotEqual(t, nil, db)
 }
 
 func TestMigrateFromDisk(t *testing.T) {
-	gm := golangmigrator.New("migrations")
-	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
-	}, gm)
-	assert.NotEqual(t, nil, db)
+  gm := golangmigrator.New("migrations")
+  db := testdb.New(t, testdb.Config{
+    Host:     "localhost",
+    User:     "postgres",
+    Password: "password",
+    Port:     "5433",
+    Options:  "sslmode=disable",
+  }, gm)
+  assert.NotEqual(t, nil, db)
 }
 ```

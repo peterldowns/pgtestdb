@@ -54,13 +54,17 @@
                 workspace_root=$(dirname "$shell_nix")
                 export WORKSPACE_ROOT="$workspace_root"
 
-                # We put the $GOPATH/$GOCACHE/$GOENV in $TOOLCHAIN_ROOT,
-                # and ensure that the GOPATH's bin dir is on our PATH so tools
+                # Puts the $GOPATH/$GOCACHE/$GOENV in $TOOLCHAIN_ROOT,
+                # and ensures that the GOPATH's bin dir is on the PATH so tools
                 # can be installed with `go install`.
                 #
                 # Any tools installed explicitly with `go install` will take precedence
                 # over versions installed by Nix due to the ordering here.
-                export TOOLCHAIN_ROOT="$WORKSPACE_ROOT/.toolchain"
+                #
+                # Puts the toolchain folder adjacent to the repo so that tools
+                # running inside the repo don't ever scan its contents.
+                export TOOLCHAIN_NAME=".toolchain-$(basename $WORKSPACE_ROOT)"
+                export TOOLCHAIN_ROOT="$(dirname $WORKSPACE_ROOT)/$TOOLCHAIN_NAME"
                 export GOROOT=
                 export GOCACHE="$TOOLCHAIN_ROOT/go/cache"
                 export GOENV="$TOOLCHAIN_ROOT/go/env"

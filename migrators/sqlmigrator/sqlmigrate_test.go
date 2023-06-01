@@ -5,10 +5,11 @@ import (
 	"embed"
 	"testing"
 
-	migrate "github.com/rubenv/sql-migrate"
-
+	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
+
+	migrate "github.com/rubenv/sql-migrate"
 
 	"github.com/peterldowns/testdb"
 	"github.com/peterldowns/testdb/migrators/sqlmigrator"
@@ -22,11 +23,12 @@ func TestSQLMigratorFromDisk(t *testing.T) {
 		Dir: "migrations",
 	}, nil)
 	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}, sm)
 	assert.NotEqual(t, nil, db)
 
@@ -71,11 +73,12 @@ func TestSQLMigratorFromFS(t *testing.T) {
 		},
 	)
 	db := testdb.New(t, testdb.Config{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}, sm)
 	assert.NotEqual(t, nil, db)
 
@@ -122,6 +125,7 @@ func TestSQLMigratorWithTableDisabled(t *testing.T) {
 		},
 	)
 	db := testdb.New(t, testdb.Config{
+		DriverName: "pgx",
 		Host:     "localhost",
 		User:     "postgres",
 		Password: "password",

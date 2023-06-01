@@ -6,97 +6,30 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/common"
-
+	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
+	_ "github.com/lib/pq"              // "postgres"
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
+
+	"github.com/peterldowns/testdb"
+	"github.com/peterldowns/testdb/internal/sessionlock"
+	"github.com/peterldowns/testdb/migrators/common"
 )
 
-// migrator is an implementation of the Migrator interface, and will
-// create a `migrations` table and a `cats` table, with some data.
-type migrator struct {
-	hash           string
-	extraMigration string
-}
-
-func (m *migrator) Hash() (string, error) {
-	if m.hash == "" {
-		return "defaultHash", nil
-	}
-	return m.hash, nil
-}
-
-func (*migrator) Prepare(ctx context.Context, templatedb *sql.DB, _ testdb.Config) error {
-	_, err := templatedb.ExecContext(ctx, `
-CREATE EXTENSION pgcrypto;
-CREATE EXTENSION pg_trgm;
-	`)
-	return err
-}
-
-func (m *migrator) Migrate(ctx context.Context, templatedb *sql.DB, _ testdb.Config) error {
-	_, err := templatedb.ExecContext(ctx, `
--- as if this were a real migrations tool that kept track of migrations
-CREATE TABLE migrations (
-	id TEXT PRIMARY KEY,
-	applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- the "migration" that we apply
-CREATE TABLE cats (
-	id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-	name text
-);
-INSERT INTO cats (name)
-VALUES ('daisy'), ('sunny');	
-
--- recordkeeping
-INSERT INTO migrations (id)
-VALUES ('cats_0001');
-`)
-	if err != nil {
-		return err
-	}
-	if m.extraMigration == "" {
-		return nil
-	}
-	_, err = templatedb.ExecContext(ctx, m.extraMigration)
-	return err
-}
-
-func (*migrator) Verify(ctx context.Context, db *sql.DB, _ testdb.Config) error {
-	rows, err := db.QueryContext(ctx, "SELECT id FROM migrations ORDER BY id ASC")
-	if err != nil {
-		return err
-	}
-	var migrations []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return err
-		}
-		migrations = append(migrations, id)
-	}
-	if !(len(migrations) == 1 && migrations[0] == "cats_0001") {
-		return fmt.Errorf("the migrations failed to apply")
-	}
-	return nil
-}
-
-// We expect that you will wrap testdb.New inside your own helper, like this,
+// You should wrap testdb.New inside your own helper, like this,
 // which sets up the db configuration (based on your own environment/configs)
 // and passes an instance of the Migrator interface.
 func New(t *testing.T) *sql.DB {
 	t.Helper()
 	dbconf := testdb.Config{
-		User:     "postgres",
-		Password: "password",
-		Host:     "localhost",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}
-	m := &migrator{}
+	m := defaultMigrator()
 	return testdb.New(t, dbconf, m)
 }
 
@@ -120,10 +53,9 @@ func TestNew(t *testing.T) {
 	check.Equal(t, []string{"daisy", "sunny"}, names)
 }
 
-// Based on the Prepare() method of our dummy migrator, we should have enabled
-// the `pg_trgm` and `pgcrypto` extensions.  The `plpgsql` extension is always
-// enabled by default. This test makes sure that these extensions
-// are installed.
+// The Prepare() method of our dummy migrator should have enabled the `pg_trgm`
+// and `pgcrypto` extensions. The `plpgsql` extension is always enabled by
+// default. This test makes sure that these extensions are installed.
 func TestExtensionsInstalled(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -179,44 +111,34 @@ func TestParallel2(t *testing.T) {
 	}
 }
 
-func TestAQuery(t *testing.T) {
-	t.Parallel()
-	db := New(t)
-	ctx := context.Background()
-
-	var result string
-	err := db.QueryRowContext(ctx, "SELECT 'hello world'").Scan(&result)
-	check.Nil(t, err)
-	check.Equal(t, "hello world", result)
-}
-
 func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	dbconf := testdb.Config{
-		User:     "postgres",
-		Password: "password",
-		Host:     "localhost",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}
 	// These two migrators have different hashes and they create databases with different schemas.
 	// The xxx schema contains a table xxx, the yyy schema contains a table yyy.
-	xxxm := &migrator{
-		hash:           "xxx",
-		extraMigration: "CREATE TABLE xxx (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY)",
+	xxxm := &sqlMigrator{
+		migrations: []string{
+			"CREATE TABLE xxx (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY)",
+		},
 	}
-	yyym := &migrator{
-		hash:           "yyy",
-		extraMigration: "CREATE TABLE yyy (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY)",
+	yyym := &sqlMigrator{
+		migrations: []string{
+			"CREATE TABLE yyy (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY)",
+		},
 	}
 	// These two migrators should have different hashes.
 	yyyh, err := yyym.Hash()
 	assert.Nil(t, err)
 	xxxh, err := xxxm.Hash()
 	assert.Nil(t, err)
-	check.Equal(t, "xxx", xxxh)
-	check.Equal(t, "yyy", yyyh)
 	assert.NotEqual(t, yyyh, xxxh)
 
 	// Create two databases. They _should_ have different schemas.
@@ -260,16 +182,17 @@ func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 //	C1: CREATE INDEX CONCURRENTLY ... -- fails with warning about deadlock, waiting on
 //	                                  -- the C2 virtual transaction!
 //
-// Here, that's not an issue because we serialize the creation of the template
-// database, and C2 will never exist :)
+// Here, that's not an issue because template creation happens at most once, so
+// C2, which is a second connection to the template database, will never exist.
 func TestMigrationWithConcurrentCreate(t *testing.T) {
 	t.Parallel()
 	config := testdb.Config{
-		User:     "postgres",
-		Password: "password",
-		Host:     "localhost",
-		Port:     "5433",
-		Options:  "sslmode=disable",
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
 	}
 	migrator := &sqlMigrator{
 		migrations: []string{
@@ -284,12 +207,79 @@ func TestMigrationWithConcurrentCreate(t *testing.T) {
 	}
 }
 
+// testdb.New should be able to connect with either lib/pq or pgx/stdlib.
+func TestWithLibPqAndPgxStdlibDrivers(t *testing.T) {
+	t.Parallel()
+	baseConfig := testdb.Config{
+		User:     "postgres",
+		Password: "password",
+		Host:     "localhost",
+		Port:     "5433",
+		Options:  "sslmode=disable",
+	}
+	pgxConfig := baseConfig
+	pgxConfig.DriverName = "pgx"
+	pqConfig := baseConfig
+	pqConfig.DriverName = "postgres"
+
+	migrator := defaultMigrator()
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("subtest_pgx_%d", i), func(t *testing.T) {
+			_ = testdb.New(t, pgxConfig, migrator)
+		})
+	}
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("subtest_pq_%d", i), func(t *testing.T) {
+			_ = testdb.New(t, pqConfig, migrator)
+		})
+	}
+}
+
+// defaultMigrator is an implementation of the Migrator interface, and will
+// create a `migrations` table and a `cats` table, with some data.
+func defaultMigrator() testdb.Migrator {
+	return &sqlMigrator{
+		preparations: []string{`
+			CREATE EXTENSION pgcrypto;
+			CREATE EXTENSION pg_trgm;
+		`},
+		migrations: []string{`
+			-- as if this were a real migrations tool that kept track of migrations
+			CREATE TABLE migrations (
+				id TEXT PRIMARY KEY,
+				applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			-- the "migration"
+			CREATE TABLE cats (
+				id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+				name text
+			);
+			INSERT INTO cats (name)
+			VALUES ('daisy'), ('sunny');	
+			-- recordkeeping
+			INSERT INTO migrations (id)
+			VALUES ('cats_0001');
+		`},
+		// These queries will fail if the tables don't exist.
+		verifications: []string{
+			"SELECT COUNT(*) from cats;",
+			"SELECT COUNT(*) from migrations;",
+		},
+	}
+}
+
+// sqlMigrator is a test helper that satisfies the testdb.Migrator interface.
 type sqlMigrator struct {
-	migrations []string
+	preparations  []string
+	migrations    []string
+	verifications []string
 }
 
 func (s *sqlMigrator) Hash() (string, error) {
 	hash := common.NewRecursiveHash()
+	for _, preparation := range s.preparations {
+		hash.Add([]byte(preparation))
+	}
 	for _, migration := range s.migrations {
 		hash.Add([]byte(migration))
 	}
@@ -297,24 +287,32 @@ func (s *sqlMigrator) Hash() (string, error) {
 }
 
 func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ testdb.Config) error {
-	if _, err := db.ExecContext(ctx, "SELECT pg_advisory_lock(1111)"); err != nil {
-		return err
-	}
-	for _, migration := range s.migrations {
-		if _, err := db.ExecContext(ctx, migration); err != nil {
+	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
+		for _, migration := range s.migrations {
+			if _, err := db.ExecContext(ctx, migration); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *sqlMigrator) Prepare(ctx context.Context, db *sql.DB, _ testdb.Config) error {
+	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
+		for _, migration := range s.preparations {
+			if _, err := db.ExecContext(ctx, migration); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *sqlMigrator) Verify(ctx context.Context, db *sql.DB, _ testdb.Config) error {
+	for _, verification := range s.verifications {
+		if _, err := db.ExecContext(ctx, verification); err != nil {
 			return err
 		}
 	}
-	if _, err := db.ExecContext(ctx, "SELECT pg_advisory_unlock(1111)"); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (*sqlMigrator) Prepare(_ context.Context, _ *sql.DB, _ testdb.Config) error {
-	return nil
-}
-
-func (*sqlMigrator) Verify(_ context.Context, _ *sql.DB, _ testdb.Config) error {
 	return nil
 }

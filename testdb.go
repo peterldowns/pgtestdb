@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx ddriver necessary for connecting
-
 	"github.com/peterldowns/testdb/internal/once"
 	"github.com/peterldowns/testdb/internal/sessionlock"
 )
@@ -24,12 +22,13 @@ const (
 
 // Config contains the details needed to connect to a postgres server/database.
 type Config struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Database string
-	Options  string
+	DriverName string
+	Host       string
+	Port       string
+	User       string
+	Password   string
+	Database   string
+	Options    string
 }
 
 // URL returns a postgres:// connection string based on the details of this
@@ -42,7 +41,7 @@ func (c Config) URL() string {
 }
 
 func (c Config) connect() (*sql.DB, error) {
-	db, err := sql.Open("pgx", c.URL())
+	db, err := sql.Open(c.DriverName, c.URL())
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +96,7 @@ type Migrator interface {
 func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
-	baseDB, err := conf.connect()
+	baseDB, err := conf.connect() // TODO: allow dialect to support non-pgx
 	if err != nil {
 		t.Fatalf("could not connect to database: %s", err)
 		return nil // unreachable
@@ -141,13 +140,13 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 		}
 	})
 
-	// Even if we are re-using an existing template, we will
-	// attempt to verify that it was created successfully. This way if there
-	// was ever a mistake or problem creating the template, a test will find
-	// out at the site of `testdb.New` rather than later in the test due to
-	// unexpected content in the database.
+	// Even if the template previously existed, verify that it was created
+	// successfully.
+	// This way if there was ever a mistake or problem creating the template, a
+	// test will find out at the site of `testdb.New` rather than later in the
+	// test due to unexpected content in the database.
 	//
-	// We assume that verification is >>> faster than performing the migrations,
+	// Assumption: verification is >>> faster than performing the migrations,
 	// and is therefore safe to run at the beginning of each test.
 	if err := migrator.Verify(ctx, db, *instance); err != nil {
 		t.Fatal(fmt.Errorf("test database failed verification %s: %w", instance.Database, err))
@@ -156,8 +155,8 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	return db
 }
 
-// user is used to guarantee that we only get-or-create the testdb user
-// at most once per program.
+// user is used to guarantee that the testdb user/role is only get-or-created at
+// most once per program.
 var user once.Var[any] = once.NewVar[any]() //nolint:gochecknoglobals
 
 func ensureUser(
@@ -165,11 +164,11 @@ func ensureUser(
 	baseDB *sql.DB,
 ) error {
 	_, err := user.Set(func() (*any, error) {
-		return nil, sessionlock.With(ctx, baseDB, "testdb-user", func() error {
+		return nil, sessionlock.With(ctx, baseDB, "testdb-user", func(conn *sql.Conn) error {
 			// Get-or-create a role/user dedicated to connecting to these test databases.
 			var roleExists bool
 			query := "SELECT EXISTS (SELECT from pg_catalog.pg_roles WHERE rolname = $1)"
-			if err := baseDB.QueryRowContext(ctx, query, TestUser).Scan(&roleExists); err != nil {
+			if err := conn.QueryRowContext(ctx, query, TestUser).Scan(&roleExists); err != nil {
 				return fmt.Errorf("failed to detect if role %s exists: %w", TestUser, err)
 			}
 			if roleExists {
@@ -177,7 +176,7 @@ func ensureUser(
 			}
 			if !roleExists {
 				query = fmt.Sprintf(`CREATE ROLE "%s"`, TestUser)
-				if _, err := baseDB.ExecContext(ctx, query); err != nil {
+				if _, err := conn.ExecContext(ctx, query); err != nil {
 					return fmt.Errorf("failed to create role %s: %w", TestUser, err)
 				}
 				query = fmt.Sprintf(
@@ -185,7 +184,7 @@ func ensureUser(
 					TestUser,
 					TestPassword,
 				)
-				if _, err := baseDB.ExecContext(ctx, query); err != nil {
+				if _, err := conn.ExecContext(ctx, query); err != nil {
 					return fmt.Errorf("failed to alter role and set password for %s: %w", TestUser, err)
 				}
 			}
@@ -238,10 +237,10 @@ func getOrCreateTemplate(
 		state.conf.User = TestUser
 		state.conf.Password = TestPassword
 		state.conf.Database = fmt.Sprintf("testdb_tpl_%s", hash)
-		// We synchronize the creation of the template across programs
-		// by using a Postgres advisory lock.
-		err := sessionlock.With(ctx, baseDB, state.conf.Database, func() error {
-			return ensureTemplate(ctx, baseDB, migrator, &state)
+		// sessionlock synchronizes the creation of the template with a
+		// session-scoped advisory lock.
+		err := sessionlock.With(ctx, baseDB, state.conf.Database, func(conn *sql.Conn) error {
+			return ensureTemplate(ctx, conn, migrator, &state)
 		})
 		if err != nil {
 			return nil, err
@@ -257,30 +256,31 @@ func getOrCreateTemplate(
 // recreate that database.
 func ensureTemplate(
 	ctx context.Context,
-	baseDB *sql.DB,
+	conn *sql.Conn,
 	migrator Migrator,
 	state *templateState,
 ) error {
-	// If the template already exists, and is marked as a template, it means we
-	// migrated successfully and we can exit right now.
+	// If the template database already exists, and is marked as a template,
+	// there is no more work to be done.
 	var templateExists bool
 	query := "SELECT EXISTS (SELECT FROM pg_database WHERE datname = $1 AND datistemplate = true)"
-	if err := baseDB.QueryRowContext(ctx, query, state.conf.Database).Scan(&templateExists); err != nil {
+	if err := conn.QueryRowContext(ctx, query, state.conf.Database).Scan(&templateExists); err != nil {
 		return fmt.Errorf("failed to check if template %s already exists: %w", state.conf.Database, err)
 	}
 	if templateExists {
 		return nil
 	}
 
-	// If it exists and isn't marked as a template, we failed to migrate it properly, so we
-	// should remove it entirely and then recreate it.
+	// If the template database already exists, but it is not marked as a
+	// template, there was a failure at some point during the creation process
+	// so it needs to be deleted.
 	query = fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, state.conf.Database)
-	if _, err := baseDB.ExecContext(ctx, query); err != nil {
+	if _, err := conn.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("failed to drop broken template %s: %w", state.conf.Database, err)
 	}
 
 	query = fmt.Sprintf(`CREATE DATABASE "%s" OWNER "%s"`, state.conf.Database, state.conf.User)
-	if _, err := baseDB.ExecContext(ctx, query); err != nil {
+	if _, err := conn.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("failed to create template %s: %w", state.conf.Database, err)
 	}
 
@@ -290,7 +290,7 @@ func ensureTemplate(
 		fmt.Sprintf(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO "%s"`, state.conf.User),
 		fmt.Sprintf(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO "%s"`, state.conf.User),
 	} {
-		if _, err := baseDB.ExecContext(ctx, query); err != nil {
+		if _, err := conn.ExecContext(ctx, query); err != nil {
 			return fmt.Errorf(
 				"failed to grant privileges on template %s to role %s: %w",
 				state.conf.Database,
@@ -321,7 +321,7 @@ func ensureTemplate(
 	// Finalize the creation of the template by marking it as a
 	// template.
 	query = "UPDATE pg_database SET datistemplate = true WHERE datname=$1"
-	if _, err := baseDB.ExecContext(ctx, query, state.conf.Database); err != nil {
+	if _, err := conn.ExecContext(ctx, query, state.conf.Database); err != nil {
 		return fmt.Errorf("failed to confirm template %s: %w", state.conf.Database, err)
 	}
 	return nil
@@ -363,8 +363,12 @@ func randomID() string {
 	return hex.EncodeToString(hash.Sum(bytes))
 }
 
-// NoopMigrator fulfills the Migrator interface but does absolutely nothing. Use
-// this if you just want to get fresh, empty databases in your tests.
+// NoopMigrator fulfills the Migrator interface but does absolutely nothing.
+// You can use this to get empty databases in your tests, or if you are trying
+// out testdb and aren't sure which migrator to use yet.
+//
+// For more documentation on migrators, see
+// https://github.com/peterldowns/testdb#testdbmigrator
 type NoopMigrator struct{}
 
 func (NoopMigrator) Hash() (string, error) {
