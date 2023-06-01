@@ -24,7 +24,7 @@ func TestMigrateFromEmbeddedFS(t *testing.T) {
 		golangmigrator.WithFS(exampleFS),
 	)
 
-	db := testdb.New(t, testdb.Config{
+	db := pgtestdb.New(t, pgtestdb.Config{
 		DriverName: "pgx",
 		Host:       "localhost",
 		User:       "postgres",
@@ -66,7 +66,7 @@ func TestMigrateFromDisk(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	gm := golangmigrator.New("migrations")
-	db := testdb.New(t, testdb.Config{
+	db := pgtestdb.New(t, pgtestdb.Config{
 		DriverName: "pgx",
 		Host:       "localhost",
 		User:       "postgres",

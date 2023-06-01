@@ -10,7 +10,7 @@ import (
 	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
-// New returns a [SQLMigrator], which is a testdb.Migrator that uses sql-migrate
+// New returns a [SQLMigrator], which is a pgtestdb.Migrator that uses sql-migrate
 // to perform migrations.
 //
 // `source` and `migrationSet` are both types defined by sql-migrate, for more
@@ -27,7 +27,7 @@ func New(source migrate.MigrationSource, migrationSet *migrate.MigrationSet) *SQ
 	}
 }
 
-// SQLMigrator is a testdb.Migrator that uses sql-migrate to perform migrations.
+// SQLMigrator is a pgtestdb.Migrator that uses sql-migrate to perform migrations.
 type SQLMigrator struct {
 	Source       migrate.MigrationSource
 	MigrationSet *migrate.MigrationSet
@@ -57,7 +57,7 @@ func (sm *SQLMigrator) Hash() (string, error) {
 func (sm *SQLMigrator) Migrate(
 	_ context.Context,
 	db *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	_, err := sm.MigrationSet.Exec(db, "postgres", sm.Source, migrate.Up)
 	return err
@@ -67,7 +67,7 @@ func (sm *SQLMigrator) Migrate(
 func (*SQLMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }
@@ -76,7 +76,7 @@ func (*SQLMigrator) Prepare(
 func (*SQLMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }

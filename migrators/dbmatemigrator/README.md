@@ -24,7 +24,7 @@ func TestDbmateMigratorWithFSAndOptions(t *testing.T) {
     // store records about which migrations are applied.
     dbmatemigrator.WithTableName("dbmate_migrations_example"),
   )
-  db := testdb.New(t, testdb.Config{
+  db := pgtestdb.New(t, pgtestdb.Config{
     DriverName: "pgx",
     Host:       "localhost",
     User:       "postgres",
@@ -40,7 +40,7 @@ func TestDbmateMigratorWithDefaults(t *testing.T) {
   // This will read migrations from disk, from the folder "./db/migrations",
   // and store the results in the "schema_migrations" table.
   m := dbmatemigrator.New()
-  db := testdb.New(t, testdb.Config{
+  db := pgtestdb.New(t, pgtestdb.Config{
     DriverName: "pgx",
     Host:       "localhost",
     User:       "postgres",

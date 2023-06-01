@@ -33,7 +33,7 @@ func WithFS(dir fs.FS) Option {
 	}
 }
 
-// New returns a [GolangMigrator], which is a testdb.Migrator that
+// New returns a [GolangMigrator], which is a pgtestdb.Migrator that
 // uses golang-migrate to perform migrations.
 //
 // `migrationsDir` is the path to the directory containing migration files.
@@ -51,7 +51,7 @@ func New(migrationsDir string, opts ...Option) *GolangMigrator {
 	return gm
 }
 
-// GolangMigrator is a testdb.Migrator that uses golang-migrate to perform migrations.
+// GolangMigrator is a pgtestdb.Migrator that uses golang-migrate to perform migrations.
 //
 // Because Hash() requires calculating a unique hash based on the contents of
 // the migrations, database, this implementation only supports reading migration
@@ -72,7 +72,7 @@ func (gm *GolangMigrator) Hash() (string, error) {
 func (gm *GolangMigrator) Migrate(
 	_ context.Context,
 	_ *sql.DB,
-	templateConfig testdb.Config,
+	templateConfig pgtestdb.Config,
 ) error {
 	var err error
 	var m *migrate.Migrate
@@ -95,7 +95,7 @@ func (gm *GolangMigrator) Migrate(
 func (*GolangMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }
@@ -104,7 +104,7 @@ func (*GolangMigrator) Prepare(
 func (*GolangMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }

@@ -59,7 +59,7 @@ func WithFS(x fs.FS) Option {
 	}
 }
 
-// New returns a [DbmateMigrator], which is a testdb.Migrator that
+// New returns a [DbmateMigrator], which is a pgtestdb.Migrator that
 // uses dbmate to perform migrations.
 //
 // You can configure the behavior of dbmate by passing Options:
@@ -79,7 +79,7 @@ func New(opts ...Option) *DbmateMigrator {
 	return m
 }
 
-// DbmateMigrator is a testdb.Migrator that uses dbmate to perform migrations.
+// DbmateMigrator is a pgtestdb.Migrator that uses dbmate to perform migrations.
 //
 // DbmateMigrator does not perform any Verify() or Prepare() logic.
 type DbmateMigrator struct {
@@ -102,7 +102,7 @@ func (m *DbmateMigrator) Hash() (string, error) {
 func (m *DbmateMigrator) Migrate(
 	_ context.Context,
 	_ *sql.DB,
-	templateConfig testdb.Config,
+	templateConfig pgtestdb.Config,
 ) error {
 	u, err := url.Parse(templateConfig.URL())
 	if err != nil {
@@ -119,7 +119,7 @@ func (m *DbmateMigrator) Migrate(
 func (*DbmateMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }
@@ -128,7 +128,7 @@ func (*DbmateMigrator) Prepare(
 func (*DbmateMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }

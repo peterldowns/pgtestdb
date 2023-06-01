@@ -18,7 +18,7 @@ func TestGooseMigratorFromDisk(t *testing.T) {
 	ctx := context.Background()
 
 	m := goosemigrator.New("migrations")
-	db := testdb.New(t, testdb.Config{
+	db := pgtestdb.New(t, pgtestdb.Config{
 		DriverName: "pgx",
 		Host:       "localhost",
 		User:       "postgres",
@@ -63,7 +63,7 @@ func TestGooseMigratorFromFS(t *testing.T) {
 		goosemigrator.WithFS(exampleFS),
 		goosemigrator.WithTableName("goose_example_migrations"),
 	)
-	db := testdb.New(t, testdb.Config{
+	db := pgtestdb.New(t, pgtestdb.Config{
 		DriverName: "pgx",
 		Host:       "localhost",
 		User:       "postgres",

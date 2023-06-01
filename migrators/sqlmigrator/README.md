@@ -17,7 +17,7 @@ func TestSQLMigratorFromDisk(t *testing.T) {
   sm := sqlmigrator.New(&migrate.FileMigrationSource{
     Dir: "migrations",
   }, nil)
-  db := testdb.New(t, testdb.Config{
+  db := pgtestdb.New(t, pgtestdb.Config{
     DriverName: "pgx",
     Host:       "localhost",
     User:       "postgres",
@@ -42,7 +42,7 @@ func TestSQLMigratorFromFSWithSomeConfiguration(t *testing.T) {
       TableName:  "alt_migrations_table_name",
     },
   )
-  db := testdb.New(t, testdb.Config{
+  db := pgtestdb.New(t, pgtestdb.Config{
     DriverName: "pgx",
     Host:       "localhost",
     User:       "postgres",

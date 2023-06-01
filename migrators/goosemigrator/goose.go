@@ -55,7 +55,7 @@ func WithFS(dir fs.FS) Option {
 	}
 }
 
-// New returns a [GooseMigrator], which is a testdb.Migrator that
+// New returns a [GooseMigrator], which is a pgtestdb.Migrator that
 // uses goose to perform migrations.
 //
 // `migrationsDir` is the path to the directory containing migration files.
@@ -74,7 +74,7 @@ func New(migrationsDir string, opts ...Option) *GooseMigrator {
 	return gm
 }
 
-// GooseMigrator is a testdb.Migrator that uses goose to perform migrations.
+// GooseMigrator is a pgtestdb.Migrator that uses goose to perform migrations.
 //
 // Because Hash() requires calculating a unique hash based on the contents of
 // the migrations, database, this implementation only supports reading migration
@@ -101,7 +101,7 @@ func (gm *GooseMigrator) Hash() (string, error) {
 func (gm *GooseMigrator) Migrate(
 	_ context.Context,
 	db *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	gooseLock.Lock()
 	defer gooseLock.Unlock()
@@ -119,7 +119,7 @@ func (gm *GooseMigrator) Migrate(
 func (*GooseMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }
@@ -128,7 +128,7 @@ func (*GooseMigrator) Prepare(
 func (*GooseMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }

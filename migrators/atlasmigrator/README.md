@@ -33,7 +33,7 @@ You can use it like this:
 ```go
 func TestWithDirMigrator(t *testing.T) {
   m := atlasmigrator.NewDirMigrator("migrations")
-  db := testdb.New(t, testdb.Config{
+  db := pgtestdb.New(t, pgtestdb.Config{
     DriverName: "pgx",
     Host:       "localhost",
     User:       "postgres",
@@ -64,7 +64,7 @@ You can use it like this:
 ```go
 func TestWithSchemaMigrator(t *testing.T) {
   m := atlasmigrator.NewSchemaMigrator("schema.hcl")
-  db := testdb.New(t, testdb.Config{
+  db := pgtestdb.New(t, pgtestdb.Config{
     DriverName: "pgx",
     Host:       "localhost",
     User:       "postgres",

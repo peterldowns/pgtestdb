@@ -11,20 +11,20 @@ set positional-arguments
 default:
   just --list
 
-# test testdb
+# test pgtestdb
 test *args='./...':
   go test -race "$@"
 
-# test testdb + migrators
+# test pgtestdb + migrators
 test-all:
   #!/usr/bin/env bash
   go test -race ./... ./migrators/*/
 
-# lint testdb
+# lint pgtestdb
 lint *args:
   golangci-lint run --fix --config .golangci.yaml "$@"
 
-# lint testdb + migrators
+# lint pgtestdb + migrators
 lint-all:
   golangci-lint run --fix --config .golangci.yaml ./migrators/*/
 
