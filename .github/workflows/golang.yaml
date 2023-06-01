@@ -38,9 +38,9 @@ jobs:
       - name: install atlas CLI
         run: curl -sSf https://atlasgo.sh | sh
       - name: test
-        run: go test ./... ./migrators/**
+        run: go test ./... ./migrators/*/
       - name: test (with race detector)
-        run: go test -race ./... ./migrators/**
+        run: go test -race ./... ./migrators/*/
   lint:
     runs-on: ubuntu-latest
     steps:

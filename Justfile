@@ -52,23 +52,23 @@ tag:
   #!/usr/bin/env bash
   set -e
   raw="v$(cat VERSION)"
-  commit="${raw}+commit.$(git rev-parse --short HEAD)"
   git tag "$raw"
-  git tag "$commit"
+  # commit="${raw}+commit.$(git rev-parse --short HEAD)"
+  # git tag "$commit"
 
 # tag migrators
 tag-migrators:
   #!/usr/bin/env bash
   set -e
   raw="v$(cat VERSION)"
-  commit="${raw}+commit.$(git rev-parse --short HEAD)"
   git tag "migrators/atlasmigrator/$raw"
-  git tag "migrators/atlasmigrator/$commit"
   git tag "migrators/dbmigrator/$raw"
-  git tag "migrators/dbmigrator/$commit"
   git tag "migrators/golangmigrator/$raw"
-  git tag "migrators/golangmigrator/$commit"
   git tag "migrators/goosemigrator/$raw"
-  git tag "migrators/goosemigrator/$commit"
   git tag "migrators/sqlmigrator/$raw"
-  git tag "migrators/sqlmigrator/$commit"
+  # commit="${raw}+commit.$(git rev-parse --short HEAD)"
+  # git tag "migrators/atlasmigrator/$commit"
+  # git tag "migrators/dbmigrator/$commit"
+  # git tag "migrators/golangmigrator/$commit"
+  # git tag "migrators/goosemigrator/$commit"
+  # git tag "migrators/sqlmigrator/$commit"
