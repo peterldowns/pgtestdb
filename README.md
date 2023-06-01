@@ -2,8 +2,6 @@
 
 ![Latest Version](https://badgers.space/badge/latest%20version/v0.0.8/blueviolet?corner_radius=m)
 ![Golang](https://badgers.space/badge/golang/1.18+/blue?corner_radius=m)
-[![CI](https://badgers.space/github/checks/peterldowns/pgtestdb/main?corner_radius=m&label=CI)](https://github.com/peterldowns/pgtestdb/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/peterldowns/pgtestdb)](https://goreportcard.com/report/github.com/peterldowns/pgtestdb)
 
 pgtestdb makes it cheap and easy to create ephemeral Postgres databases for your
 golang tests. It uses [template
