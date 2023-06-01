@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/common"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
-// NewDirMigrator returns a [DirMigrator], which is a testdb.Migrator that
+// NewDirMigrator returns a [DirMigrator], which is a pgtestdb.Migrator that
 // uses the `atlas` CLI tool to perform migrations.
 //
 //	atlas migrate apply --url $DB --dir file://$migrationsDirPath
@@ -20,7 +20,7 @@ func NewDirMigrator(
 	}
 }
 
-// DirMigrator is a testdb.Migrator that uses the `atlas` CLI
+// DirMigrator is a pgtestdb.Migrator that uses the `atlas` CLI
 // tool to perform migrations.
 //
 //	atlas migrate apply --url $DB --dir file://$migrationsDirPath
@@ -45,7 +45,7 @@ func (m *DirMigrator) Hash() (string, error) {
 func (m *DirMigrator) Migrate(
 	ctx context.Context,
 	_ *sql.DB,
-	templateConf testdb.Config,
+	templateConf pgtestdb.Config,
 ) error {
 	_, err := common.Execute(ctx, nil,
 		"atlas",
@@ -63,7 +63,7 @@ func (m *DirMigrator) Migrate(
 func (*DirMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }
@@ -72,7 +72,7 @@ func (*DirMigrator) Prepare(
 func (*DirMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }

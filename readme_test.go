@@ -1,5 +1,5 @@
 // This file contains all of the examples from README.md
-package testdb_test
+package pgtestdb_test
 
 import (
 	"database/sql"
@@ -10,15 +10,15 @@ import (
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
-	"github.com/peterldowns/testdb"
+	"github.com/peterldowns/pgtestdb"
 )
 
 func TestMyExample(t *testing.T) {
-	// testdb is concurrency safe, go crazy, run a lot of tests at once
+	// pgtestdb is concurrency safe, go crazy, run a lot of tests at once
 	t.Parallel()
 	// You should connect as an admin user. Use a dedicated server explicitly
 	// for tests, do NOT use your production database.
-	conf := testdb.Config{
+	conf := pgtestdb.Config{
 		DriverName: "pgx",
 		User:       "postgres",
 		Password:   "password",
@@ -28,8 +28,8 @@ func TestMyExample(t *testing.T) {
 	}
 	// You'll want to use a real migrator, this is just an example. See
 	// the rest of the docs for more information.
-	var migrator testdb.Migrator = testdb.NoopMigrator{}
-	db := testdb.New(t, conf, migrator)
+	var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
+	db := pgtestdb.New(t, conf, migrator)
 	// If there is any sort of error, the test will have ended with t.Fatal().
 	// No need to check errors! Go ahead and use the database.
 	var message string
@@ -42,7 +42,7 @@ func TestMyExample(t *testing.T) {
 // test database, fully migrated and ready for you to query.
 func NewDB(t *testing.T) *sql.DB {
 	t.Helper()
-	conf := testdb.Config{
+	conf := pgtestdb.Config{
 		DriverName: "pgx",
 		User:       "postgres",
 		Password:   "password",
@@ -52,8 +52,8 @@ func NewDB(t *testing.T) *sql.DB {
 	}
 	// You'll want to use a real migrator, this is just an example. See the rest
 	// of the docs for more information.
-	var migrator testdb.Migrator = testdb.NoopMigrator{}
-	return testdb.New(t, conf, migrator)
+	var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
+	return pgtestdb.New(t, conf, migrator)
 }
 
 func TestAQuery(t *testing.T) {
@@ -68,7 +68,7 @@ func TestAQuery(t *testing.T) {
 
 func TestWithLibPqDriver(t *testing.T) {
 	t.Parallel()
-	pqConf := testdb.Config{
+	pqConf := pgtestdb.Config{
 		DriverName: "postgres", // uses the lib/pq driver
 		User:       "postgres",
 		Password:   "password",
@@ -76,8 +76,8 @@ func TestWithLibPqDriver(t *testing.T) {
 		Port:       "5433",
 		Options:    "sslmode=disable",
 	}
-	migrator := testdb.NoopMigrator{}
-	db := testdb.New(t, pqConf, migrator)
+	migrator := pgtestdb.NoopMigrator{}
+	db := pgtestdb.New(t, pqConf, migrator)
 
 	var message string
 	err := db.QueryRow("select 'hello world'").Scan(&message)
@@ -87,7 +87,7 @@ func TestWithLibPqDriver(t *testing.T) {
 
 func TestWithPgxStdlibDriver(t *testing.T) {
 	t.Parallel()
-	pgxConf := testdb.Config{
+	pgxConf := pgtestdb.Config{
 		DriverName: "pgx", // uses the pgx/stdlib driver
 		User:       "postgres",
 		Password:   "password",
@@ -95,8 +95,8 @@ func TestWithPgxStdlibDriver(t *testing.T) {
 		Port:       "5433",
 		Options:    "sslmode=disable",
 	}
-	migrator := testdb.NoopMigrator{}
-	db := testdb.New(t, pgxConf, migrator)
+	migrator := pgtestdb.NoopMigrator{}
+	db := pgtestdb.New(t, pgxConf, migrator)
 
 	var message string
 	err := db.QueryRow("select 'hello world'").Scan(&message)

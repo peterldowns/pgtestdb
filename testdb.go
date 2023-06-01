@@ -1,4 +1,4 @@
-package testdb
+package pgtestdb
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/peterldowns/testdb/internal/once"
-	"github.com/peterldowns/testdb/internal/sessionlock"
+	"github.com/peterldowns/pgtestdb/internal/once"
+	"github.com/peterldowns/pgtestdb/internal/sessionlock"
 )
 
 const (
@@ -55,7 +55,7 @@ type Migrator interface {
 	// after it has been fully migrated. For instance, it may return a hash of all
 	// of the migration names and contents.
 	//
-	// testdb will use the returned Hash to identify a template database. If a
+	// pgtestdb will use the returned Hash to identify a template database. If a
 	// Migrator returns a Hash that has already been used to create a template
 	// database, it is assumed that the database need not be recreated since it
 	// would result in the same schema and data.
@@ -368,7 +368,7 @@ func randomID() string {
 // out testdb and aren't sure which migrator to use yet.
 //
 // For more documentation on migrators, see
-// https://github.com/peterldowns/testdb#testdbmigrator
+// https://github.com/peterldowns/pgtestdb#testdbmigrator
 type NoopMigrator struct{}
 
 func (NoopMigrator) Hash() (string, error) {

@@ -6,8 +6,8 @@ import (
 
 	migrate "github.com/rubenv/sql-migrate"
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/common"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
 // New returns a [SQLMigrator], which is a testdb.Migrator that uses sql-migrate

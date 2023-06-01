@@ -1,4 +1,4 @@
-package testdb_test
+package pgtestdb_test
 
 import (
 	"context"
@@ -11,17 +11,17 @@ import (
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/internal/sessionlock"
-	"github.com/peterldowns/testdb/migrators/common"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/internal/sessionlock"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
-// You should wrap testdb.New inside your own helper, like this,
+// You should wrap pgtestdb.New inside your own helper, like this,
 // which sets up the db configuration (based on your own environment/configs)
 // and passes an instance of the Migrator interface.
 func New(t *testing.T) *sql.DB {
 	t.Helper()
-	dbconf := testdb.Config{
+	dbconf := pgtestdb.Config{
 		DriverName: "pgx",
 		User:       "postgres",
 		Password:   "password",
@@ -30,7 +30,7 @@ func New(t *testing.T) *sql.DB {
 		Options:    "sslmode=disable",
 	}
 	m := defaultMigrator()
-	return testdb.New(t, dbconf, m)
+	return pgtestdb.New(t, dbconf, m)
 }
 
 // Checks to make sure that the testdb is created succesfully and that all
@@ -114,7 +114,7 @@ func TestParallel2(t *testing.T) {
 func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	dbconf := testdb.Config{
+	dbconf := pgtestdb.Config{
 		DriverName: "pgx",
 		User:       "postgres",
 		Password:   "password",
@@ -142,8 +142,8 @@ func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 	assert.NotEqual(t, yyyh, xxxh)
 
 	// Create two databases. They _should_ have different schemas.
-	xxxdb := testdb.New(t, dbconf, xxxm)
-	yyydb := testdb.New(t, dbconf, yyym)
+	xxxdb := pgtestdb.New(t, dbconf, xxxm)
+	yyydb := pgtestdb.New(t, dbconf, yyym)
 
 	// But, the bug is that due to use of t.Once(), they will actually have the
 	// same schema.  One of these two statements will always fail! Due to
@@ -167,7 +167,7 @@ func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 
 // This test confirms that due to testdb's locking strategy, even a migrator
 // that uses advisory locks and runs a migration with "CREATE INDEX CONCURRENTLY"
-// will succeed. testdb will take an advisory lock on the primary database
+// will succeed. pgtestdb will take an advisory lock on the primary database
 // that it is connected to, NOT on the template database. This means that there
 // is only ever one migrator running on the template database at a time, and there
 // will never be any other migrators waiting or potentially contending an advisory
@@ -186,7 +186,7 @@ func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 // C2, which is a second connection to the template database, will never exist.
 func TestMigrationWithConcurrentCreate(t *testing.T) {
 	t.Parallel()
-	config := testdb.Config{
+	config := pgtestdb.Config{
 		DriverName: "pgx",
 		User:       "postgres",
 		Password:   "password",
@@ -202,15 +202,15 @@ func TestMigrationWithConcurrentCreate(t *testing.T) {
 	}
 	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("subtest_%d", i), func(t *testing.T) {
-			_ = testdb.New(t, config, migrator)
+			_ = pgtestdb.New(t, config, migrator)
 		})
 	}
 }
 
-// testdb.New should be able to connect with either lib/pq or pgx/stdlib.
+// pgtestdb.New should be able to connect with either lib/pq or pgx/stdlib.
 func TestWithLibPqAndPgxStdlibDrivers(t *testing.T) {
 	t.Parallel()
-	baseConfig := testdb.Config{
+	baseConfig := pgtestdb.Config{
 		User:     "postgres",
 		Password: "password",
 		Host:     "localhost",
@@ -225,19 +225,19 @@ func TestWithLibPqAndPgxStdlibDrivers(t *testing.T) {
 	migrator := defaultMigrator()
 	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("subtest_pgx_%d", i), func(t *testing.T) {
-			_ = testdb.New(t, pgxConfig, migrator)
+			_ = pgtestdb.New(t, pgxConfig, migrator)
 		})
 	}
 	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("subtest_pq_%d", i), func(t *testing.T) {
-			_ = testdb.New(t, pqConfig, migrator)
+			_ = pgtestdb.New(t, pqConfig, migrator)
 		})
 	}
 }
 
 // defaultMigrator is an implementation of the Migrator interface, and will
 // create a `migrations` table and a `cats` table, with some data.
-func defaultMigrator() testdb.Migrator {
+func defaultMigrator() pgtestdb.Migrator {
 	return &sqlMigrator{
 		preparations: []string{`
 			CREATE EXTENSION pgcrypto;
@@ -268,7 +268,7 @@ func defaultMigrator() testdb.Migrator {
 	}
 }
 
-// sqlMigrator is a test helper that satisfies the testdb.Migrator interface.
+// sqlMigrator is a test helper that satisfies the pgtestdb.Migrator interface.
 type sqlMigrator struct {
 	preparations  []string
 	migrations    []string
@@ -286,7 +286,7 @@ func (s *sqlMigrator) Hash() (string, error) {
 	return hash.String(), nil
 }
 
-func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ testdb.Config) error {
+func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
 	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
 		for _, migration := range s.migrations {
 			if _, err := db.ExecContext(ctx, migration); err != nil {
@@ -297,7 +297,7 @@ func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ testdb.Config) 
 	})
 }
 
-func (s *sqlMigrator) Prepare(ctx context.Context, db *sql.DB, _ testdb.Config) error {
+func (s *sqlMigrator) Prepare(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
 	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
 		for _, migration := range s.preparations {
 			if _, err := db.ExecContext(ctx, migration); err != nil {
@@ -308,7 +308,7 @@ func (s *sqlMigrator) Prepare(ctx context.Context, db *sql.DB, _ testdb.Config) 
 	})
 }
 
-func (s *sqlMigrator) Verify(ctx context.Context, db *sql.DB, _ testdb.Config) error {
+func (s *sqlMigrator) Verify(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
 	for _, verification := range s.verifications {
 		if _, err := db.ExecContext(ctx, verification); err != nil {
 			return err

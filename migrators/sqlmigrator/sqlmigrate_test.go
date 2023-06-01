@@ -11,8 +11,8 @@ import (
 
 	migrate "github.com/rubenv/sql-migrate"
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/sqlmigrator"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/sqlmigrator"
 )
 
 func TestSQLMigratorFromDisk(t *testing.T) {

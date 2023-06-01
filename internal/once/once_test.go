@@ -8,7 +8,7 @@ import (
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
-	"github.com/peterldowns/testdb/internal/once"
+	"github.com/peterldowns/pgtestdb/internal/once"
 )
 
 func TestVar(t *testing.T) {

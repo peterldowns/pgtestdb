@@ -9,8 +9,8 @@ import (
 	"github.com/amacneil/dbmate/v2/pkg/dbmate"
 	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres" // driver
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/common"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
 // Option provides a way to configure the DbmateMigrator struct and its behavior.

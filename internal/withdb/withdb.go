@@ -1,5 +1,5 @@
 // withdb is a simplified way of creating test databases, used to test the
-// internal packages that testdb depends on.
+// internal packages that pgtestdb depends on.
 package withdb
 
 import (
@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/peterldowns/testdb/internal/multierr"
+	"github.com/peterldowns/pgtestdb/internal/multierr"
 )
 
 // WithDB is a helper for writing postgres-backed tests. It will:

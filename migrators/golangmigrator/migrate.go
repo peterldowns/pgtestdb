@@ -12,8 +12,8 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // pgx driver
 	_ "github.com/golang-migrate/migrate/v4/source/file"       // "file://"" source driver
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/common"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
 // Option provides a way to configure the GolangMigrator struct and its behavior.

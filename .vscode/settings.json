@@ -27,7 +27,7 @@
   "gopls": {
     "buildFlags": ["-tags", "manual"],
     "formatting.gofumpt": true,
-    "formatting.local": "github.com/peterldowns/testdb",
+    "formatting.local": "github.com/peterldowns/pgtestdb",
     "build.directoryFilters": []
   },
   "[go]": {

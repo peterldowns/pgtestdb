@@ -1,7 +1,7 @@
 # atlasmigrator
 
 ```shell
-go get github.com/peterldowns/testdb/migrators/atlasmigrator@latest
+go get github.com/peterldowns/pgtestdb/migrators/atlasmigrator@latest
 ```
 
 atlasmigrator provides migrators that can be used out of the box with projects

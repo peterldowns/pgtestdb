@@ -1,7 +1,7 @@
 # goosemigrator
 
 ```shell
-go get github.com/peterldowns/testdb/migrators/goosemigrator@latest
+go get github.com/peterldowns/pgtestdb/migrators/goosemigrator@latest
 ```
 
 goosemigrator provides migrators that can be used out of the box with projects

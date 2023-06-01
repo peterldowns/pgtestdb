@@ -8,8 +8,8 @@ import (
 
 	"github.com/pressly/goose/v3"
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/common"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
 // The mutex here makes this Migrator concurrency-safe. Goose uses Postgres

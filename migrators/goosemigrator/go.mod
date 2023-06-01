@@ -1,10 +1,10 @@
-module github.com/peterldowns/testdb/migrators/goosemigrator
+module github.com/peterldowns/pgtestdb/migrators/goosemigrator
 
 go 1.18
 
 require (
 	github.com/jackc/pgx/v5 v5.3.1
-	github.com/peterldowns/testdb v0.0.4
+	github.com/peterldowns/pgtestdb v0.0.0-00010101000000-000000000000
 	github.com/peterldowns/testy v0.0.1
 	github.com/pressly/goose/v3 v3.11.2
 )
@@ -18,3 +18,5 @@ require (
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
 )
+
+replace github.com/peterldowns/pgtestdb => ../../

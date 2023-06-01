@@ -1,11 +1,11 @@
-# 🧪 testdb
+# 🧪 pgtestdb
 
-![Latest Version](https://badgers.space/badge/latest%20version/v0.0.4/blueviolet?corner_radius=m)
+![Latest Version](https://badgers.space/badge/latest%20version/v0.0.5/blueviolet?corner_radius=m)
 ![Golang](https://badgers.space/badge/golang/1.18+/blue?corner_radius=m)
-[![CI](https://badgers.space/github/checks/peterldowns/testdb/main?corner_radius=m&label=CI)](https://github.com/peterldowns/testdb/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/peterldowns/testdb)](https://goreportcard.com/report/github.com/peterldowns/testdb)
+[![CI](https://badgers.space/github/checks/peterldowns/pgtestdb/main?corner_radius=m&label=CI)](https://github.com/peterldowns/pgtestdb/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/peterldowns/pgtestdb)](https://goreportcard.com/report/github.com/peterldowns/pgtestdb)
 
-testdb makes it cheap and easy to create ephemeral Postgres databases for your
+pgtestdb makes it cheap and easy to create ephemeral Postgres databases for your
 golang tests. It uses [template
 databases](https://www.postgresql.org/docs/current/manage-ag-templatedbs.html)
 to give each test a fully prepared and migrated Postgres database &mdash; no
@@ -14,8 +14,8 @@ everything.
 
 # Documentation
 
-- [This page, https://github.com/peterldowns/testdb](https://github.com/peterldowns/testdb)
-- [The go.dev docs, pkg.go.dev/github.com/peterldowns/testdb](https://pkg.go.dev/github.com/peterldowns/testdb)
+- [This page, https://github.com/peterldowns/pgtestdb](https://github.com/peterldowns/pgtestdb)
+- [The go.dev docs, pkg.go.dev/github.com/peterldowns/pgtestdb](https://pkg.go.dev/github.com/peterldowns/pgtestdb)
 
 This page is the primary source for documentation. The code itself is supposed
 to be well-organized, and each function has a meaningful docstring, so you
@@ -23,12 +23,12 @@ should be able to explore it quite easily using an LSP plugin, reading the
 code, or clicking through the go.dev docs.
 
 ## How does it work?
-Each time a test asks for a fresh database by calling `testdb.New`, testdb will
+Each time a test asks for a fresh database by calling `pgtestdb.New`, pgtestdb will
 check to see if a template database already exists. If not, it creates a new
 database, runs your migrations on it, and then marks it as a template.  Once the
 template exists, it is _very_ fast to create a new database from that template.
 
-testdb only runs migrations one time when your migrations change. The marginal
+pgtestdb only runs migrations one time when your migrations change. The marginal
 cost of a new test that uses the database is just the time to create a clone
 from the template, which is now basically free.
 
@@ -37,7 +37,7 @@ When a test fails, the database it used is left alive, and the test logs will
 include a connection string you can use to connect to it with `psql` and explore
 what happened.
 
-testdb works with any migration framework, and includes out-of-the-box adaptors
+pgtestdb works with any migration framework, and includes out-of-the-box adaptors
 for the most popular golang frameworks:
 
 - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
@@ -46,23 +46,23 @@ for the most popular golang frameworks:
 - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
 - [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
 
-testdb is concurrency-safe and I encourage you to run your tests in parallel.
+pgtestdb is concurrency-safe and I encourage you to run your tests in parallel.
 
 ## Install
 
 ```shell
-go get github.com/peterldowns/testdb@latest
+go get github.com/peterldowns/pgtestdb@latest
 ```
 
 ## Quickstart
 
 ### Example Test
 
-Here's how you use `testdb.New` in a test to get a database.
+Here's how you use `pgtestdb.New` in a test to get a database.
 
 ```go
 
-// testdb uses the `sql` interfaces to interact with Postgres, you just have to
+// pgtestdb uses the `sql` interfaces to interact with Postgres, you just have to
 // bring your own driver. Here we're using the PGX driver in stdlib mode, which
 // registers a "pgx" driver.
 import (
@@ -73,11 +73,11 @@ import (
 )
 
 func TestMyExample(t *testing.T) {
-  // testdb is concurrency safe, go crazy, run a lot of tests at once
+  // pgtestdb is concurrency safe, go crazy, run a lot of tests at once
   t.Parallel()
   // You should connect as an admin user. Use a dedicated server explicitly
   // for tests, do NOT use your production database.
-  conf := testdb.Config{
+  conf := pgtestdb.Config{
     DriverName: "pgx",
     User:       "postgres",
     Password:   "password",
@@ -87,8 +87,8 @@ func TestMyExample(t *testing.T) {
   }
   // You'll want to use a real migrator, this is just an example. See
   // the rest of the docs for more information.
-  var migrator testdb.Migrator = testdb.NoopMigrator{}
-  db := testdb.New(t, conf, migrator)
+  var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
+  db := pgtestdb.New(t, conf, migrator)
   // If there is any sort of error, the test will have ended with t.Fatal().
   // No need to check errors! Go ahead and use the database.
   var message string
@@ -101,8 +101,8 @@ func TestMyExample(t *testing.T) {
 ### Defining A Helper
 
 It would be crazy to add that whole prelude to each of your tests. I recommend
-that you define a test helper function that calls `testdb.New` with the same
-`testdb.Config` and `testdb.Migrator` each time. You should then use this helper
+that you define a test helper function that calls `pgtestdb.New` with the same
+`pgtestdb.Config` and `pgtestdb.Migrator` each time. You should then use this helper
 in your tests. Here is an example:
 
 ```go
@@ -110,7 +110,7 @@ in your tests. Here is an example:
 // test database, fully migrated and ready for you to query.
 func NewDB(t *testing.T) *sql.DB {
   t.Helper()
-  conf := testdb.Config{
+  conf := pgtestdb.Config{
     DriverName: "pgx",
     User:       "postgres",
     Password:   "password",
@@ -120,8 +120,8 @@ func NewDB(t *testing.T) *sql.DB {
   }
   // You'll want to use a real migrator, this is just an example. See the rest
   // of the docs for more information.
-  var migrator testdb.Migrator = testdb.NoopMigrator{}
-  return testdb.New(t, conf, migrator)
+  var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
+  return pgtestdb.New(t, conf, migrator)
 }
 ```
 
@@ -141,18 +141,18 @@ func TestAQuery(t *testing.T) {
 ```
 
 ### Running The Postgres Server
-testdb requires you to provide a connection to a Postgres server. I **strongly
+pgtestdb requires you to provide a connection to a Postgres server. I **strongly
 recommend** running a dedicated server just for tests that is RAM-backed
 (instead of disk-backed) and tuned for performance by removing all data-sync
 guarantees. This would be a bad idea in production, but in tests it works great.
 Your tests will go ⚡️ *fast* ⚡️.
 
-**Do Not** connect testdb to the same server that
-contains your production data. testdb requires admin privileges to work, and
+**Do Not** connect pgtestdb to the same server that
+contains your production data. pgtestdb requires admin privileges to work, and
 creates and deletes databases as part of its operation. You should always use a
 dedicated server for your tests.
 
-Some common methods of running a Postgres server for testdb:
+Some common methods of running a Postgres server for pgtestdb:
 
 - run Postgres inside Docker / with Docker Compose
 - run Postgres natively, through a binary or package you install
@@ -169,7 +169,7 @@ options, see the FAQ below.
 ```yaml
 version: "3.6"
 services:
-  testdb:
+  pgtestdb:
     image: postgres:15
     environment:
       POSTGRES_PASSWORD: password
@@ -190,7 +190,7 @@ services:
       - "5433:5432"
 ```
 
-If you do not have a server running, or testdb cannot connect to your server,
+If you do not have a server running, or pgtestdb cannot connect to your server,
 you will see a failure message like this one:
 
 ```
@@ -200,13 +200,13 @@ you will see a failure message like this one:
 
 ### Choosing A Driver
 
-testdb will work with [pgx](https://github.com/jackc/pgx/) or
+pgtestdb will work with [pgx](https://github.com/jackc/pgx/) or
 [lib/pq](https://github.com/lib/pq) or any other [database/sql
 driver](https://pkg.go.dev/database/sql/driver). I recommend using the pgx
 driver unless you have a good reason to remain on lib/pq. 
 
 As with any sql driver,  make sure to import the driver so that it registers
-itself. Then, pass its name in the `testdb.Config`:
+itself. Then, pass its name in the `pgtestdb.Config`:
 
 ```go
 import (
@@ -217,7 +217,7 @@ import (
 
 func TestWithLibPqDriver(t *testing.T) {
   t.Parallel()
-  pqConf := testdb.Config{
+  pqConf := pgtestdb.Config{
     DriverName: "postgres", // uses the lib/pq driver
     User:       "postgres",
     Password:   "password",
@@ -225,8 +225,8 @@ func TestWithLibPqDriver(t *testing.T) {
     Port:       "5433",
     Options:    "sslmode=disable",
   }
-  migrator := testdb.NoopMigrator{}
-  db := testdb.New(t, pqConf, migrator)
+  migrator := pgtestdb.NoopMigrator{}
+  db := pgtestdb.New(t, pqConf, migrator)
 
   var message string
   err := db.QueryRow("select 'hello world'").Scan(&message)
@@ -236,7 +236,7 @@ func TestWithLibPqDriver(t *testing.T) {
 
 func TestWithPgxStdlibDriver(t *testing.T) {
   t.Parallel()
-  pgxConf := testdb.Config{
+  pgxConf := pgtestdb.Config{
     DriverName: "pgx", // uses the pgx/stdlib driver
     User:       "postgres",
     Password:   "password",
@@ -244,8 +244,8 @@ func TestWithPgxStdlibDriver(t *testing.T) {
     Port:       "5433",
     Options:    "sslmode=disable",
   }
-  migrator := testdb.NoopMigrator{}
-  db := testdb.New(t, pgxConf, migrator)
+  migrator := pgtestdb.NoopMigrator{}
+  db := pgtestdb.New(t, pgxConf, migrator)
 
   var message string
   err := db.QueryRow("select 'hello world'").Scan(&message)
@@ -255,7 +255,7 @@ func TestWithPgxStdlibDriver(t *testing.T) {
 ```
 
 ## API
-### `testdb.New`
+### `pgtestdb.New`
 
 This creates a new test database or fails the test. Each time it's called it:
 
@@ -281,11 +281,11 @@ to synchronize, meaning that your migrations will only run one time per test
 package no matter how many tests, or how many packages, you're testing at the
 same time.
 
-Once it creates your brand new fresh test database, testdb will `t.Log()` the
+Once it creates your brand new fresh test database, pgtestdb will `t.Log()` the
 connection string so that iff your test fails you can connect to the database
 and figure out what happened.
 
-### `testdb.Config`
+### `pgtestdb.Config`
 
 The `Config` struct contains the details needed to connect to a Postgres server.
 Make sure to connect with a user that has the necessary permissions to create
@@ -306,10 +306,10 @@ type Config struct {
 }
 ```
 
-### `testdb.Migrator`
+### `pgtestdb.Migrator`
 
 The `Migrator` interface contains all of the logic needed to prepare a template
-database that can be cloned for each of your tests. testdb requires you to
+database that can be cloned for each of your tests. pgtestdb requires you to
 supply a `Migrator` to work. I have written a few for the most popular
 migration frameworks, you can use these right away:
 
@@ -331,7 +331,7 @@ type Migrator interface {
   // after it has been fully migrated. For instance, it may return a hash of all
   // of the migration names and contents.
   //
-  // testdb will use the returned Hash to identify a template database. If a
+  // pgtestdb will use the returned Hash to identify a template database. If a
   // Migrator returns a Hash that has already been used to create a template
   // database, it is assumed that the database need not be recreated since it
   // would result in the same schema and data.
@@ -369,10 +369,10 @@ nothing at all.
 ```go
 // NoopMigrator fulfills the Migrator interface but does absolutely nothing.
 // You can use this to get empty databases in your tests, or if you are trying
-// out testdb and aren't sure which migrator to use yet.
+// out pgtestdb and aren't sure which migrator to use yet.
 //
 // For more documentation on migrators, see
-// https://github.com/peterldowns/testdb#testdbmigrator
+// https://github.com/peterldowns/pgtestdb#pgtestdbmigrator
 type NoopMigrator struct{}
 ```
 
@@ -439,13 +439,13 @@ a few minutes on reasonably-priced CI machines, and individual packages/tests
 ran fast enough on local development machines that developers were happy to add
 new database-backed tests without worrying about the cost.
 
-I believe that testdb and a ram-backed Postgres server is fast enough to be
+I believe that pgtestdb and a ram-backed Postgres server is fast enough to be
 worth it. If you try it out and don't think so, please open an issue &mdash;
 I'd be very interested to see if I can make it work for you, too.
 
 ## How can I contribute?
 
-testdb is a standard golang project, you'll need a working golang environment.
+pgtestdb is a standard golang project, you'll need a working golang environment.
 If you're of the nix persuasion, this repo comes with a flakes-compatible
 development shell that you can enter with `nix develop` (flakes) or `nix-shell`
 (standard).

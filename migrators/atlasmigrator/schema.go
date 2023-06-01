@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/common"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
-// NewSchemaMigrator returns a [SchemaMigrator], which is a testdb.Migrator that
+// NewSchemaMigrator returns a [SchemaMigrator], which is a pgtestdb.Migrator that
 // uses the `atlas` CLI tool to perform migrations.
 //
 //	atlas schema apply --auto-approve --url $DB --to file://$schemaFilePath
@@ -18,7 +18,7 @@ func NewSchemaMigrator(
 	return &SchemaMigrator{SchemaFilePath: schemaFilePath}
 }
 
-// SchemaMigrator is a testdb.Migrator that uses the `atlas` CLI tool to perform
+// SchemaMigrator is a pgtestdb.Migrator that uses the `atlas` CLI tool to perform
 // migrations.
 //
 //	atlas schema apply --auto-approve --url $DB --to file://$schemaFilePath
@@ -44,7 +44,7 @@ func (m *SchemaMigrator) Hash() (string, error) {
 func (m *SchemaMigrator) Migrate(
 	ctx context.Context,
 	_ *sql.DB,
-	templateConf testdb.Config,
+	templateConf pgtestdb.Config,
 ) error {
 	_, err := common.Execute(ctx, nil,
 		"atlas",
@@ -63,7 +63,7 @@ func (m *SchemaMigrator) Migrate(
 func (*SchemaMigrator) Prepare(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }
@@ -72,7 +72,7 @@ func (*SchemaMigrator) Prepare(
 func (*SchemaMigrator) Verify(
 	_ context.Context,
 	_ *sql.DB,
-	_ testdb.Config,
+	_ pgtestdb.Config,
 ) error {
 	return nil
 }

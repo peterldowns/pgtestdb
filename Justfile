@@ -38,9 +38,6 @@ tidy:
   for subdir in ./migrators/*/; do
     pushd $subdir
     go mod tidy
-    go get -u -t github.com/peterldowns/testdb@none
-    go get -u -t github.com/peterldowns/testdb@latest
-    go mod tidy
     popd
   done
   go mod tidy

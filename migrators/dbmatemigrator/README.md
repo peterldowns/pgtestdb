@@ -1,7 +1,7 @@
 # dbmatemigrator
 
 ```shell
-go get github.com/peterldowns/testdb/migrators/dbmatemigrator@latest
+go get github.com/peterldowns/pgtestdb/migrators/dbmatemigrator@latest
 ```
 
 dbmatemigrator provides a migrator that can be used out of the box with projects

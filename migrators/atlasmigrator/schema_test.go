@@ -8,8 +8,8 @@ import (
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
-	"github.com/peterldowns/testdb"
-	"github.com/peterldowns/testdb/migrators/atlasmigrator"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/atlasmigrator"
 )
 
 func TestSchemaMigrator(t *testing.T) {
@@ -17,7 +17,7 @@ func TestSchemaMigrator(t *testing.T) {
 	ctx := context.Background()
 
 	m := atlasmigrator.NewSchemaMigrator("schema.hcl")
-	db := testdb.New(t, testdb.Config{
+	db := pgtestdb.New(t, pgtestdb.Config{
 		DriverName: "pgx",
 		Host:       "localhost",
 		User:       "postgres",

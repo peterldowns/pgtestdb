@@ -1,15 +1,17 @@
-module github.com/peterldowns/testdb/migrators/golangmigrator
+module github.com/peterldowns/pgtestdb/migrators/golangmigrator
 
 go 1.18
 
 require (
+	github.com/golang-migrate/migrate/v4 v4.16.0
 	github.com/jackc/pgx/v5 v5.3.1
-	github.com/peterldowns/testdb v0.0.4
+	github.com/peterldowns/pgtestdb v0.0.0-00010101000000-000000000000
 	github.com/peterldowns/testy v0.0.1
 )
 
 require (
 	github.com/docker/docker v23.0.6+incompatible // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -18,11 +20,8 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc3 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 	golang.org/x/text v0.9.0 // indirect
 )
 
-require (
-	github.com/golang-migrate/migrate/v4 v4.16.0
-	github.com/google/go-cmp v0.5.9 // indirect
-	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
-)
+replace github.com/peterldowns/pgtestdb => ../../

@@ -8,7 +8,7 @@ import (
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
-	"github.com/peterldowns/testdb/migrators/common"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
 func TestExecute(t *testing.T) {
