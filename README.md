@@ -64,11 +64,10 @@ Here's how you use `pgtestdb.New` in a test to get a database.
 
 // pgtestdb uses the `sql` interfaces to interact with Postgres, you just have to
 // bring your own driver. Here we're using the PGX driver in stdlib mode, which
-// registers a "pgx" driver.
+// registers a driver with the name "pgx".
 import (
   // ...
   _ "github.com/jackc/pgx/v5/stdlib"
-  _ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver
   // ...
 )
 
