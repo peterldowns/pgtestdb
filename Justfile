@@ -18,7 +18,7 @@ test *args='./...':
 # test pgtestdb + migrators
 test-all:
   #!/usr/bin/env bash
-  go test -race ./... ./migrators/*/
+  go test -race github.com/peterldowns/pgtestdb/...
 
 # lint pgtestdb
 lint *args:
@@ -26,12 +26,13 @@ lint *args:
 
 # lint pgtestdb + migrators
 lint-all:
-  golangci-lint run --fix --config .golangci.yaml ./migrators/*/
+  golangci-lint run --fix --config .golangci.yaml ./ ./migrators/*/
 
 # lint nix files
 lint-nix:
   find . -name '*.nix' | xargs nixpkgs-fmt
 
+# attempts to tidy all go.mod files
 tidy:
   #!/usr/bin/env bash
   go mod tidy
@@ -40,18 +41,16 @@ tidy:
     go mod tidy
     popd
   done
-  go mod tidy
   rm -f go.work.sum
+  go mod tidy
   go work sync
   go mod tidy
-
-  
 
 # tag testdb
 tag:
   #!/usr/bin/env bash
   set -e
-  raw="v$(cat VERSION)"
+  raw="$(cat VERSION)"
   git tag "$raw"
   # commit="${raw}+commit.$(git rev-parse --short HEAD)"
   # git tag "$commit"
@@ -60,7 +59,7 @@ tag:
 tag-migrators:
   #!/usr/bin/env bash
   set -e
-  raw="v$(cat VERSION)"
+  raw="$(cat VERSION)"
   git tag "migrators/atlasmigrator/$raw"
   git tag "migrators/dbmigrator/$raw"
   git tag "migrators/golangmigrator/$raw"

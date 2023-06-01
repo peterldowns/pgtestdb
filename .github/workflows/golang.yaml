@@ -37,10 +37,10 @@ jobs:
           cache-dependency-path: go.sum
       - name: install atlas CLI
         run: curl -sSf https://atlasgo.sh | sh
-      - name: test
-        run: go test ./... ./migrators/*/
-      - name: test (with race detector)
-        run: go test -race ./... ./migrators/*/
+      - name: test all
+        run: go test github.com/peterldowns/pgtestdb/...
+      - name: test all -race
+        run: go test -race github.com/peterldowns/pgtestdb/...
   lint:
     runs-on: ubuntu-latest
     steps:
