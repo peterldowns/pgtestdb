@@ -71,3 +71,12 @@ tag-migrators:
   # git tag "migrators/golangmigrator/$commit"
   # git tag "migrators/goosemigrator/$commit"
   # git tag "migrators/sqlmigrator/$commit"
+
+bump-version version:
+  #!/usr/bin/env bash
+  OLD_VERSION=$(cat VERSION)
+  NEW_VERSION=$1
+  echo "bumping $OLD_VERSION -> $NEW_VERSION"
+  echo $NEW_VERSION > VERSION
+  sed -i -e "s/$OLD_VERSION/$NEW_VERSION/g" README.md
+  sed -i -e "s,github.com/peterldowns/pgtestdb $OLD_VERSION,github.com/peterldowns/pgtestdb $NEW_VERSION,g" migrators/*/go.mod
