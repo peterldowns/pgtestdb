@@ -32,7 +32,7 @@ lint-all:
 lint-nix:
   find . -name '*.nix' | xargs nixpkgs-fmt
 
-# attempts to tidy all go.mod files
+# (attempt) to tidy all go.mod files
 tidy:
   #!/usr/bin/env bash
   go mod tidy
@@ -46,7 +46,7 @@ tidy:
   go work sync
   go mod tidy
 
-# tag testdb
+# tag pgtestdb with current version
 tag:
   #!/usr/bin/env bash
   set -e
@@ -55,7 +55,7 @@ tag:
   # commit="${raw}+commit.$(git rev-parse --short HEAD)"
   # git tag "$commit"
 
-# tag migrators
+# tag migrators with current version.
 tag-migrators:
   #!/usr/bin/env bash
   set -e
@@ -72,6 +72,7 @@ tag-migrators:
   # git tag "migrators/goosemigrator/$commit"
   # git tag "migrators/sqlmigrator/$commit"
 
+# set the VERSION and go.mod versions.
 bump-version version:
   #!/usr/bin/env bash
   OLD_VERSION=$(cat VERSION)
