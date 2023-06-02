@@ -291,15 +291,16 @@ new databases and roles. Most likely you want to connect as the default
 server as described earlier.
 
 ```go
-// config.URL() => "postgres://postgres:password@localhost:5433?sslmode=disable&anotherSetting=value"
+// This config will connect to a database with the connection string:
+// "postgres://postgres:password@localhost:5433?sslmode=disable&anotherSetting=value"
 type Config struct {
-  Driver   string // "pgx" (pgx) or "postgres" (lib/pq)
-  Host     string // "localhost"
-  Port     string // "5433"
-  User     string // "postgres"
-  Password string // "password"
-  Database string // "postgres"
-  Options  string // "sslmode=disable&anotherSetting=value"
+  DriverName string // "pgx" (pgx) or "postgres" (lib/pq)
+  Host       string //  "localhost"
+  Port       string // "5433"
+  User       string //  "postgres"
+  Password   string // "password"
+  Database   string // "postgres"
+  Options    string // "sslmode=disable&anotherSetting=value"
 }
 ```
 
