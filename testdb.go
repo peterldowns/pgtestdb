@@ -22,17 +22,16 @@ const (
 
 // Config contains the details needed to connect to a postgres server/database.
 type Config struct {
-	DriverName string
-	Host       string
-	Port       string
-	User       string
-	Password   string
-	Database   string
-	Options    string
+	DriverName string // the name of a driver to use when calling sql.Open() to connect to a database
+	Host       string // the host of the database, "localhost"
+	Port       string // the port of the database, "5433"
+	User       string // the user to connect as, "postgres"
+	Password   string // the password to connect with, "password"
+	Database   string // the database to connect to, "postgres"
+	Options    string // URL-formatted additional options to pass in the connection string, "sslmode=disable&something=value"
 }
 
-// URL returns a postgres:// connection string based on the details of this
-// config.
+// URL returns a postgres:// connection string
 func (c Config) URL() string {
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?%s",
@@ -40,7 +39,8 @@ func (c Config) URL() string {
 	)
 }
 
-func (c Config) connect() (*sql.DB, error) {
+// Connect calls sql.Open() and connects to the database.
+func (c Config) Connect() (*sql.DB, error) {
 	db, err := sql.Open(c.DriverName, c.URL())
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ type Migrator interface {
 func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
-	baseDB, err := conf.connect()
+	baseDB, err := conf.Connect()
 	if err != nil {
 		t.Fatalf("could not connect to database: %s", err)
 		return nil // unreachable
@@ -118,7 +118,7 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	}
 	t.Logf("testdbconf: %s", instance.URL())
 
-	db, err := instance.connect()
+	db, err := instance.Connect()
 	if err != nil {
 		t.Fatalf("failed to connect to instance: %s", err)
 		return nil // unreachable
@@ -285,7 +285,7 @@ func ensureTemplate(
 	}
 
 	// Connect to the template.
-	template, err := state.conf.connect()
+	template, err := state.conf.Connect()
 	if err != nil {
 		return fmt.Errorf("failed to connect to template %s: %w", state.conf.Database, err)
 	}

@@ -202,6 +202,7 @@ func TestMigrationWithConcurrentCreate(t *testing.T) {
 	}
 	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("subtest_%d", i), func(t *testing.T) {
+			t.Parallel()
 			_ = pgtestdb.New(t, config, migrator)
 		})
 	}
@@ -225,11 +226,13 @@ func TestWithLibPqAndPgxStdlibDrivers(t *testing.T) {
 	migrator := defaultMigrator()
 	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("subtest_pgx_%d", i), func(t *testing.T) {
+			t.Parallel()
 			_ = pgtestdb.New(t, pgxConfig, migrator)
 		})
 	}
 	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("subtest_pq_%d", i), func(t *testing.T) {
+			t.Parallel()
 			_ = pgtestdb.New(t, pqConfig, migrator)
 		})
 	}
