@@ -6,5 +6,6 @@ use (
 	./migrators/dbmatemigrator
 	./migrators/golangmigrator
 	./migrators/goosemigrator
+	./migrators/pgmigrator
 	./migrators/sqlmigrator
 )

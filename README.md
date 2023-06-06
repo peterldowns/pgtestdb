@@ -1,6 +1,6 @@
 # 🧪 pgtestdb
 
-![Latest Version](https://badgers.space/badge/latest%20version/v0.0.9/blueviolet?corner_radius=m)
+![Latest Version](https://badgers.space/badge/latest%20version/v0.0.10/blueviolet?corner_radius=m)
 ![Golang](https://badgers.space/badge/golang/1.18+/blue?corner_radius=m)
 
 pgtestdb makes it cheap and easy to create ephemeral Postgres databases for your
@@ -38,6 +38,7 @@ what happened.
 pgtestdb works with any migration framework, and includes out-of-the-box adaptors
 for the most popular golang frameworks:
 
+- [pgmigrator](./pgmigrator/) for [peterldowns/pgmigrate](https://github.com/peterldowns/pgmigrate)
 - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
 - [goosemigrator](migrators/goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
 - [dbmatemigrator](migrators/dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
@@ -311,6 +312,7 @@ database that can be cloned for each of your tests. pgtestdb requires you to
 supply a `Migrator` to work. I have written a few for the most popular
 migration frameworks, you can use these right away:
 
+- [pgmigrator](./pgmigrator/) for [peterldowns/pgmigrate](https://github.com/peterldowns/pgmigrate)
 - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
 - [goosemigrator](migrators/goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
 - [dbmatemigrator](migrators/dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)

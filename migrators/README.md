@@ -3,6 +3,7 @@
 pgtestdb works with any migration framework, and includes out-of-the-box
 adaptors for the most popular golang frameworks:
 
+- [pgmigrator](./pgmigrator/) for [peterldowns/pgmigrate](https://github.com/peterldowns/pgmigrate)
 - [golangmigrator](./golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
 - [goosemigrator](./goosemigrator/) for [pressly/goose](https://github.com/pressly/goose)
 - [dbmatemigrator](./dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
