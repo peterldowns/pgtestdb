@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
+	"github.com/peterldowns/pgmigrate"
 	"github.com/peterldowns/testy/assert"
 	"github.com/peterldowns/testy/check"
 
@@ -133,4 +134,24 @@ func TestPGMigratorWithTableName(t *testing.T) {
 	err = db.QueryRowContext(ctx, "select count(*) from blog_posts").Scan(&numBlogPosts)
 	assert.Nil(t, err)
 	check.Equal(t, 0, numBlogPosts)
+}
+
+func TestPGMigratorFromFSAndWithOptions(t *testing.T) {
+	t.Parallel()
+	logger := pgmigrate.NewTestLogger(t)
+	pgm, err := pgmigrator.New(
+		migrations.FS,
+		pgmigrator.WithTableName("example_table_name"),
+		pgmigrator.WithLogger(logger),
+	)
+	assert.Nil(t, err)
+	db := pgtestdb.New(t, pgtestdb.Config{
+		DriverName: "pgx",
+		Host:       "localhost",
+		User:       "postgres",
+		Password:   "password",
+		Port:       "5433",
+		Options:    "sslmode=disable",
+	}, pgm)
+	assert.NotEqual(t, nil, db)
 }

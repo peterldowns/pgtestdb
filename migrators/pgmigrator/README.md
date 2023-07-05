@@ -11,9 +11,7 @@ You can use migrations from disk or from an embedded FS, and you can set the tab
 ```go
 func TestPGMigratorFromDisk(t *testing.T) {
 	dir := os.DirFS("migrations")
-	pgm, err := pgmigrator.New(
-    dir,
-    pgmigrator.WithTableName("example_table_name")),
+	pgm, err := pgmigrator.New(dir),
   )
 	assert.Nil(t, err)
 	db := pgtestdb.New(t, pgtestdb.Config{
@@ -30,8 +28,13 @@ func TestPGMigratorFromDisk(t *testing.T) {
 //go:embed *.sql
 var exampleFS embed.FS
 
-func TestPGMigratorFromFS(t *testing.T) {
-	pgm, err := pgmigrator.New(exampleFS)
+func TestPGMigratorFromFSAndWithOptions(t *testing.T) {
+	logger := pgmigrate.NewTestLogger(t)
+	pgm, err := pgmigrator.New(
+		exampleFS,
+		pgmigrator.WithTableName("example_table_name"),
+		pgmigrator.WithLogger(logger),
+	)
 	assert.Nil(t, err)
 	db := pgtestdb.New(t, pgtestdb.Config{
 		DriverName: "pgx",

@@ -32,6 +32,17 @@ func WithTableName(tableName string) Option {
 	}
 }
 
+// WithLogger sets the [pgmigrate.Logger] to use when applying migrations.
+//
+// You probably want to use `pgmigrate.NewTestLogger(t)`.
+//
+// Default: `nil`
+func WithLogger(logger pgmigrate.Logger) Option {
+	return func(pgm *PGMigrator) {
+		pgm.m.Logger = logger
+	}
+}
+
 // New returns a [PGMigrator], which is a pgtestdb.Migrator that uses pgmigrate
 // to perform migrations.
 func New(dir fs.FS, opts ...Option) (*PGMigrator, error) {
