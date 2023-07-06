@@ -11,8 +11,7 @@ You can use migrations from disk or from an embedded FS, and you can set the tab
 ```go
 func TestPGMigratorFromDisk(t *testing.T) {
 	dir := os.DirFS("migrations")
-	pgm, err := pgmigrator.New(dir),
-  )
+	pgm, err := pgmigrator.New(dir)
 	assert.Nil(t, err)
 	db := pgtestdb.New(t, pgtestdb.Config{
 		DriverName: "pgx",
