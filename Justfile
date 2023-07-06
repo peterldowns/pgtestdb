@@ -65,6 +65,7 @@ tag-migrators:
   git tag "migrators/golangmigrator/$raw"
   git tag "migrators/goosemigrator/$raw"
   git tag "migrators/sqlmigrator/$raw"
+  git tag "migrators/pgmigrator/$raw"
   # commit="${raw}+commit.$(git rev-parse --short HEAD)"
   # git tag "migrators/atlasmigrator/$commit"
   # git tag "migrators/dbmigrator/$commit"
