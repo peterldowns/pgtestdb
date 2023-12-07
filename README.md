@@ -71,7 +71,7 @@ import (
 )
 
 func TestMyExample(t *testing.T) {
-  // pgtestdb is concurrency safe, go crazy, run a lot of tests at once
+  // pgtestdb is concurrency safe, enjoy yourself, run a lot of tests at once
   t.Parallel()
   // You should connect as an admin user. Use a dedicated server explicitly
   // for tests, do NOT use your production database.
@@ -98,7 +98,7 @@ func TestMyExample(t *testing.T) {
 
 ### Defining A Helper
 
-It would be crazy to add that whole prelude to each of your tests. I recommend
+It would be tedious to add that whole prelude to each of your tests. I recommend
 that you define a test helper function that calls `pgtestdb.New` with the same
 `pgtestdb.Config` and `pgtestdb.Migrator` each time. You should then use this helper
 in your tests. Here is an example:
@@ -150,15 +150,37 @@ contains your production data. pgtestdb requires admin privileges to work, and
 creates and deletes databases as part of its operation. You should always use a
 dedicated server for your tests.
 
+pgtestdb will connect to any postgres server as long as you can supply
+the username, password, host, port, and database name -- the config
+generates a DSN connection string of the form `postgres://user:password@host:port/dbname?options`.
+
 Some common methods of running a Postgres server for pgtestdb:
 
 - run Postgres inside Docker / with Docker Compose
 - run Postgres natively, through a binary or package you install
 - run Postgres on a remote server somewhere
-- run Postgres automatically when your test suite runs:
-  - with [ory/dockertest](https://github.com/ory/dockertest/blob/v3/examples/PostgreSQL.md)
-  - with [rubenv/pgtest](https://github.com/rubenv/pgtest)
-  - with [fergusstrange/embedded-postgres](https://github.com/fergusstrange/embedded-postgres)
+
+There are some projects, like 
+[ory/dockertest](https://github.com/ory/dockertest/blob/v3/examples/PostgreSQL.md)
+or
+[fergusstrange/embedded-postgres](https://github.com/fergusstrange/embedded-postgres),
+that allow you to write a `TestMain(m *test.M)` method and spin up a postgres
+server from your golang code. I **strongly recommend you do not use these
+libraries**, they were generally written with a different testing model in
+mind. Two major drawbacks:
+
+* these methods generally create a postgres server for each package you're
+  testing (in the `TestMain(m *testing.M)`) instead of sharing a single
+  postgres server for all the packages that you're testing. This means that if
+  you're testing N packages, your migrations will run N times, and your tests
+  will be that much slower.
+* these packages are always brittle in that they do not guarantee the server
+  exits cleanly, resulting in leaked server processes (at best) or stateful
+  failures where servers collide with each other and cannot start (at worst.)
+
+Instead, I **strongly recommend using Docker Compose** to run a single postgres
+server.  Developers are often very familiar with Docker, it's generally easy to
+use in CI, and it makes it easy to use a tmpfs/ramdisk for the file system.
 
 Here is an example `docker-compose.yml` file you can use to run a RAM-backed
 Postgres server inside of a docker container. For more performance tuning
