@@ -35,10 +35,6 @@
                 gopkgs
                 gopls
                 gotools
-                # Python
-                python311Full
-                black
-                ruff
                 # Nix
                 rnix-lsp
                 nixpkgs-fmt
