@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
 	_ "github.com/lib/pq"              // "postgres"
 	"github.com/peterldowns/testy/assert"
@@ -33,6 +34,34 @@ func New(t *testing.T) *sql.DB {
 	return pgtestdb.New(t, dbconf, m)
 }
 
+// newPgx integrates pgtestdb with pgx.
+func newPgx(t *testing.T, ctx context.Context) *pgx.Conn {
+	t.Helper()
+	dbconf := pgtestdb.Config{
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
+	}
+	m := defaultMigrator()
+	instance := pgtestdb.NewInstance(t, dbconf, m)
+	conn, err := pgx.Connect(ctx, instance.URL())
+	if err != nil {
+		t.Fatalf("could not connect to database: %s", err)
+	}
+	t.Cleanup(func() {
+		if err := conn.Close(ctx); err != nil {
+			t.Fatalf(
+				"cloud not close test pgx connection: '%s': %s",
+				instance.Database, err,
+			)
+		}
+	})
+	return conn
+}
+
 // Checks to make sure that the testdb is created succesfully and that all
 // migrations are applied.
 func TestNew(t *testing.T) {
@@ -50,6 +79,16 @@ func TestNew(t *testing.T) {
 		assert.Nil(t, rows.Scan(&name))
 		names = append(names, name)
 	}
+	check.Equal(t, []string{"daisy", "sunny"}, names)
+}
+
+func TestNewPgx(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	conn := newPgx(t, ctx)
+	rows, _ := conn.Query(ctx, "SELECT name FROM cats ORDER BY name ASC")
+	names, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	assert.Nil(t, err)
 	check.Equal(t, []string{"daisy", "sunny"}, names)
 }
 

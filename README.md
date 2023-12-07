@@ -138,6 +138,48 @@ func TestAQuery(t *testing.T) {
 }
 ```
 
+If you wish to use something that is not `sql.DB`, you can use the
+`NewInstance` method instead of the `New`. Here is an example using pgx:
+
+```go
+// NewPgx is a helper that returns an open pgx connection to a unique and
+// isolated test database, fully migrated and ready for you to query.
+func NewPgx(t *testing.T, ctx context.Context) *pgx.Conn {
+  t.Helper()
+  conf := pgtestdb.Config{
+    DriverName: "pgx",
+    User:       "postgres",
+    Password:   "password",
+    Host:       "localhost",
+    Port:       "5433",
+    Options:    "sslmode=disable",
+  }
+  // You'll want to use a real migrator, this is just an example. See the rest
+  // of the docs for more information.
+  var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
+  instance := pgtestdb.NewInstance(t, conf, migrator)
+  conn, err := pgx.Connect(ctx, instance.URL())
+  if err != nil {
+    t.Fatal(err)
+  }
+  t.Cleanup(func() {
+    conn.Close(ctx)
+  })
+  return conn
+}
+
+// TestWithNewPgx uses the NewPgx helper to get a pgx connection to a test.
+func TestWithNewPgx(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	conn := NewPgx(t, ctx)
+	rows, _ := conn.Query(ctx, "select 'hello world'")
+	message, err := pgx.CollectOneRow(rows, pgx.RowTo[string])
+	assert.Nil(t, err)
+	assert.Equal(t, "hello world", message)
+}
+```
+
 ### Running The Postgres Server
 pgtestdb requires you to provide a connection to a Postgres server. I **strongly
 recommend** running a dedicated server just for tests that is RAM-backed

@@ -2,9 +2,11 @@
 package pgtestdb_test
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
+	"github.com/jackc/pgx/v5"          // registers the "pgx" driver
 	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver
 	_ "github.com/lib/pq"              // registers the "postgres" driver
 	"github.com/peterldowns/testy/assert"
@@ -64,6 +66,43 @@ func TestAQuery(t *testing.T) {
 	err := db.QueryRow("SELECT 'hello world'").Scan(&result)
 	check.Nil(t, err)
 	check.Equal(t, "hello world", result)
+}
+
+// NewPgx is a helper that returns an open pgx connection to a unique and
+// isolated test database, fully migrated and ready for you to query.
+func NewPgx(t *testing.T, ctx context.Context) *pgx.Conn {
+	t.Helper()
+	conf := pgtestdb.Config{
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
+	}
+	// You'll want to use a real migrator, this is just an example. See the rest
+	// of the docs for more information.
+	var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
+	instance := pgtestdb.NewInstance(t, conf, migrator)
+	conn, err := pgx.Connect(ctx, instance.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		conn.Close(ctx)
+	})
+	return conn
+}
+
+// TestWithNewPgx uses the NewPgx helper to get a pgx connection to a test.
+func TestWithNewPgx(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	conn := NewPgx(t, ctx)
+	rows, _ := conn.Query(ctx, "select 'hello world'")
+	message, err := pgx.CollectOneRow(rows, pgx.RowTo[string])
+	assert.Nil(t, err)
+	assert.Equal(t, "hello world", message)
 }
 
 func TestWithLibPqDriver(t *testing.T) {

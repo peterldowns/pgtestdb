@@ -95,11 +95,25 @@ type Migrator interface {
 // as part of the test cleanup process.
 func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
+	_, db := newInstance(t, conf, migrator)
+	return db
+}
+
+// NewInstance works just like New() but returns a Config object instead.
+func NewInstance(t *testing.T, conf Config, migrator Migrator) Config {
+	t.Helper()
+	cfg, db := newInstance(t, conf, migrator)
+	defer db.Close()
+	return *cfg
+}
+
+func newInstance(t *testing.T, conf Config, migrator Migrator) (*Config, *sql.DB) {
+	t.Helper()
 	ctx := context.Background()
 	baseDB, err := conf.Connect()
 	if err != nil {
 		t.Fatalf("could not connect to database: %s", err)
-		return nil // unreachable
+		return nil, nil // unreachable
 	}
 
 	if err := ensureUser(ctx, baseDB); err != nil {
@@ -114,14 +128,14 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 	instance, err := createInstance(ctx, baseDB, *template)
 	if err != nil {
 		t.Fatalf("failed to create instance: %s", err)
-		return nil // unreachable
+		return nil, nil // unreachable
 	}
 	t.Logf("testdbconf: %s", instance.URL())
 
 	db, err := instance.Connect()
 	if err != nil {
 		t.Fatalf("failed to connect to instance: %s", err)
-		return nil // unreachable
+		return nil, nil // unreachable
 	}
 	t.Cleanup(func() {
 		// Close the testDB
@@ -152,7 +166,7 @@ func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
 		t.Fatal(fmt.Errorf("test database failed verification %s: %w", instance.Database, err))
 	}
 
-	return db
+	return instance, db
 }
 
 // user is used to guarantee that the testdb user/role is only get-or-created at
