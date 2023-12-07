@@ -35,8 +35,8 @@ func New(t *testing.T) *sql.DB {
 }
 
 // newPgx integrates pgtestdb with pgx.
-func newPgx(t *testing.T, ctx context.Context) *pgx.Conn {
-	t.Helper()
+func newPgx(tb testing.TB, ctx context.Context) *pgx.Conn {
+	tb.Helper()
 	dbconf := pgtestdb.Config{
 		DriverName: "pgx",
 		User:       "postgres",
@@ -46,14 +46,14 @@ func newPgx(t *testing.T, ctx context.Context) *pgx.Conn {
 		Options:    "sslmode=disable",
 	}
 	m := defaultMigrator()
-	instance := pgtestdb.NewInstance(t, dbconf, m)
+	instance := pgtestdb.NewInstance(tb, dbconf, m)
 	conn, err := pgx.Connect(ctx, instance.URL())
 	if err != nil {
-		t.Fatalf("could not connect to database: %s", err)
+		tb.Fatalf("could not connect to database: %s", err)
 	}
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		if err := conn.Close(ctx); err != nil {
-			t.Fatalf(
+			tb.Fatalf(
 				"cloud not close test pgx connection: '%s': %s",
 				instance.Database, err,
 			)

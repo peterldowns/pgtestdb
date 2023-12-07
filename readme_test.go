@@ -42,8 +42,8 @@ func TestMyExample(t *testing.T) {
 
 // NewDB is a helper that returns an open connection to a unique and isolated
 // test database, fully migrated and ready for you to query.
-func NewDB(t *testing.T) *sql.DB {
-	t.Helper()
+func NewDB(tb testing.TB) *sql.DB {
+	tb.Helper()
 	conf := pgtestdb.Config{
 		DriverName: "pgx",
 		User:       "postgres",
@@ -55,7 +55,7 @@ func NewDB(t *testing.T) *sql.DB {
 	// You'll want to use a real migrator, this is just an example. See the rest
 	// of the docs for more information.
 	var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
-	return pgtestdb.New(t, conf, migrator)
+	return pgtestdb.New(tb, conf, migrator)
 }
 
 func TestAQuery(t *testing.T) {
@@ -70,8 +70,8 @@ func TestAQuery(t *testing.T) {
 
 // NewPgx is a helper that returns an open pgx connection to a unique and
 // isolated test database, fully migrated and ready for you to query.
-func NewPgx(t *testing.T, ctx context.Context) *pgx.Conn {
-	t.Helper()
+func NewPgx(tb testing.TB, ctx context.Context) *pgx.Conn {
+	tb.Helper()
 	conf := pgtestdb.Config{
 		DriverName: "pgx",
 		User:       "postgres",
@@ -83,12 +83,12 @@ func NewPgx(t *testing.T, ctx context.Context) *pgx.Conn {
 	// You'll want to use a real migrator, this is just an example. See the rest
 	// of the docs for more information.
 	var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
-	instance := pgtestdb.NewInstance(t, conf, migrator)
+	instance := pgtestdb.NewInstance(tb, conf, migrator)
 	conn, err := pgx.Connect(ctx, instance.URL())
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		conn.Close(ctx)
 	})
 	return conn

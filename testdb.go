@@ -93,64 +93,64 @@ type Migrator interface {
 //
 // If this method succeeds and your test succeeds, the database will be removed
 // as part of the test cleanup process.
-func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
-	t.Helper()
-	_, db := newInstance(t, conf, migrator)
+func New(tb testing.TB, conf Config, migrator Migrator) *sql.DB {
+	tb.Helper()
+	_, db := newInstance(tb, conf, migrator)
 	return db
 }
 
 // NewInstance works just like New() but returns a Config object instead.
-func NewInstance(t *testing.T, conf Config, migrator Migrator) Config {
-	t.Helper()
-	cfg, db := newInstance(t, conf, migrator)
+func NewInstance(tb testing.TB, conf Config, migrator Migrator) Config {
+	tb.Helper()
+	cfg, db := newInstance(tb, conf, migrator)
 	defer db.Close()
 	return *cfg
 }
 
-func newInstance(t *testing.T, conf Config, migrator Migrator) (*Config, *sql.DB) {
-	t.Helper()
+func newInstance(tb testing.TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
+	tb.Helper()
 	ctx := context.Background()
 	baseDB, err := conf.Connect()
 	if err != nil {
-		t.Fatalf("could not connect to database: %s", err)
+		tb.Fatalf("could not connect to database: %s", err)
 		return nil, nil // unreachable
 	}
 
 	if err := ensureUser(ctx, baseDB); err != nil {
-		t.Fatalf("could not create pgtestdb user: %s", err)
+		tb.Fatalf("could not create pgtestdb user: %s", err)
 	}
 
 	template, err := getOrCreateTemplate(ctx, baseDB, conf, migrator)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	instance, err := createInstance(ctx, baseDB, *template)
 	if err != nil {
-		t.Fatalf("failed to create instance: %s", err)
+		tb.Fatalf("failed to create instance: %s", err)
 		return nil, nil // unreachable
 	}
-	t.Logf("testdbconf: %s", instance.URL())
+	tb.Logf("testdbconf: %s", instance.URL())
 
 	db, err := instance.Connect()
 	if err != nil {
-		t.Fatalf("failed to connect to instance: %s", err)
+		tb.Fatalf("failed to connect to instance: %s", err)
 		return nil, nil // unreachable
 	}
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		// Close the testDB
 		if err := db.Close(); err != nil {
-			t.Fatalf("could not close test database: '%s': %s", instance.Database, err)
+			tb.Fatalf("could not close test database: '%s': %s", instance.Database, err)
 			return // uncreachable
 		}
 		// If the test failed, leave the testdb around for further investigation
-		if t.Failed() {
+		if tb.Failed() {
 			return
 		}
 		// Otherwise, remove the testdb from the server
 		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
-			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
+			tb.Fatalf("could not drop test database '%s': %s", instance.Database, err)
 		}
 	})
 
@@ -163,7 +163,7 @@ func newInstance(t *testing.T, conf Config, migrator Migrator) (*Config, *sql.DB
 	// Assumption: verification is >>> faster than performing the migrations,
 	// and is therefore safe to run at the beginning of each test.
 	if err := migrator.Verify(ctx, db, *instance); err != nil {
-		t.Fatal(fmt.Errorf("test database failed verification %s: %w", instance.Database, err))
+		tb.Fatal(fmt.Errorf("test database failed verification %s: %w", instance.Database, err))
 	}
 
 	return instance, db
