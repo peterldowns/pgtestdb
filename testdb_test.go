@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	pgx "github.com/jackc/pgx/v5"      // "pgx" driver
 	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
 	_ "github.com/lib/pq"              // "postgres"
 	"github.com/peterldowns/testy/assert"
@@ -51,6 +52,35 @@ func TestNew(t *testing.T) {
 		names = append(names, name)
 	}
 	check.Equal(t, []string{"daisy", "sunny"}, names)
+}
+
+func TestCustom(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	dbconf := pgtestdb.Config{
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
+	}
+	m := defaultMigrator()
+	config := pgtestdb.Custom(t, dbconf, m)
+	check.NotEqual(t, dbconf, *config)
+
+	var conn *pgx.Conn
+	var err error
+	conn, err = pgx.Connect(ctx, config.URL())
+	assert.Nil(t, err)
+	defer func() {
+		err := conn.Close(ctx)
+		assert.Nil(t, err)
+	}()
+
+	var message string
+	err = conn.QueryRow(ctx, "select 'hello world'").Scan(&message)
+	assert.Nil(t, err)
 }
 
 // The Prepare() method of our dummy migrator should have enabled the `pg_trgm`

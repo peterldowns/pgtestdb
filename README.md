@@ -152,7 +152,7 @@ dedicated server for your tests.
 
 pgtestdb will connect to any postgres server as long as you can supply
 the username, password, host, port, and database name -- the config
-generates a DSN connection string of the form `postgres://user:password@host:port/dbname?options`.
+generates a psotgres connection string of the form `postgres://user:password@host:port/dbname?options`.
 
 Some common methods of running a Postgres server for pgtestdb:
 
@@ -220,10 +220,13 @@ you will see a failure message like this one:
 
 ### Choosing A Driver
 
-pgtestdb will work with [pgx](https://github.com/jackc/pgx/) or
-[lib/pq](https://github.com/lib/pq) or any other [database/sql
-driver](https://pkg.go.dev/database/sql/driver). I recommend using the pgx
-driver unless you have a good reason to remain on lib/pq. 
+As part of creating and migrating the test databases, pgtestdb will connect to
+the server via the `sql.DB` database interface. In order to do so, you will need
+to choose, register, and configure your SQL driver. pgtestdb will work with
+[pgx](https://github.com/jackc/pgx/) or [lib/pq](https://github.com/lib/pq) or
+any other [database/sql driver](https://pkg.go.dev/database/sql/driver). I
+recommend using the pgx driver unless you have a good reason to remain on
+lib/pq. 
 
 As with any sql driver,  make sure to import the driver so that it registers
 itself. Then, pass its name in the `pgtestdb.Config`:
@@ -234,6 +237,25 @@ import (
   _ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver
   _ "github.com/lib/pq"              // registers the "postgres" driver
 )
+
+func TestWithPgxStdlibDriver(t *testing.T) {
+  t.Parallel()
+  pgxConf := pgtestdb.Config{
+    DriverName: "pgx", // uses the pgx/stdlib driver
+    User:       "postgres",
+    Password:   "password",
+    Host:       "localhost",
+    Port:       "5433",
+    Options:    "sslmode=disable",
+  }
+  migrator := pgtestdb.NoopMigrator{}
+  db := pgtestdb.New(t, pgxConf, migrator)
+
+  var message string
+  err := db.QueryRow("select 'hello world'").Scan(&message)
+  assert.Nil(t, err)
+  assert.Equal(t, "hello world", message)
+}
 
 func TestWithLibPqDriver(t *testing.T) {
   t.Parallel()
@@ -254,24 +276,6 @@ func TestWithLibPqDriver(t *testing.T) {
   assert.Equal(t, "hello world", message)
 }
 
-func TestWithPgxStdlibDriver(t *testing.T) {
-  t.Parallel()
-  pgxConf := pgtestdb.Config{
-    DriverName: "pgx", // uses the pgx/stdlib driver
-    User:       "postgres",
-    Password:   "password",
-    Host:       "localhost",
-    Port:       "5433",
-    Options:    "sslmode=disable",
-  }
-  migrator := pgtestdb.NoopMigrator{}
-  db := pgtestdb.New(t, pgxConf, migrator)
-
-  var message string
-  err := db.QueryRow("select 'hello world'").Scan(&message)
-  assert.Nil(t, err)
-  assert.Equal(t, "hello world", message)
-}
 ```
 
 ## API
@@ -281,7 +285,7 @@ func TestWithPgxStdlibDriver(t *testing.T) {
 func New(t testing.TB, conf Config, migrator Migrator) *sql.DB
 ```
 
-This creates and connects to a new test database, and ensures that all migrations are run. If any part of this fails, the test is marked as a failure using `t.Fail()`
+`New` creates and connects to a new test database, and ensures that all migrations are run. If any part of this fails, the test is marked as a failure using `t.Fail()`
 
 [`testing.TB`](https://pkg.go.dev/testing#TB) is the common testing interface implemented by `*testing.T`, `*testing.B`, and `*testing.F`, so you can use pgtestdb to get a database for tests, benchmarks, and fuzzes.
 
@@ -299,7 +303,7 @@ How does it work? Each time it's called, it:
     preparation, like installing extensions or creating additional roles.
   - Calls `Migrate()` on the provided migrator to actually migrate the database schema.
   - Marks the database as a template
-- Creates a new database from the template
+- Creates a new database instance from the template
 - Calls `Verify()` on the provided migrator to confirm that the new test database
   is in the correct state.
 
@@ -312,11 +316,23 @@ Once it creates your brand new fresh test database, pgtestdb will `t.Log()` the
 connection string so that iff your test fails you can connect to the database
 and figure out what happened.
 
+### `pgtestdb.Custom` 
+
+```go
+func Custom(t testing.TB, conf Config, migrator Migrator) *Config
+```
+
+`Custom` is like `New` but after creating the new database instance, it closes
+its connection and returns the configuration details of that database so that
+you can connect to it explicitly, potentially via a different SQL interface.
+
+You can get the connection URL for the database by calling `.URL()` on the
+config (see below.)
+
 ### `pgtestdb.Config`
 
 ```go
-// This config will connect to a database with the connection string:
-// "postgres://postgres:password@localhost:5433?sslmode=disable&anotherSetting=value"
+// Config contains the details needed to connect to a postgres server/database.
 type Config struct {
   DriverName string // "pgx" (pgx) or "postgres" (lib/pq)
   Host       string //  "localhost"
@@ -326,6 +342,13 @@ type Config struct {
   Database   string // "postgres"
   Options    string // "sslmode=disable&anotherSetting=value"
 }
+
+// URL returns a postgres connection string in the format
+// "postgres://user:password@host:port/database?options=..."
+func (c Config) URL() string
+
+// Connect calls `sql.Open()“ and connects to the database.
+func (c Config) Connect() (*sql.DB, error)
 ```
 
 The `Config` struct contains the details needed to connect to a Postgres server.
@@ -333,7 +356,6 @@ Make sure to connect with a user that has the necessary permissions to create
 new databases and roles. Most likely you want to connect as the default
 `postgres` user, since you'll be connecting to a dedicated testing-only Postgres
 server as described earlier.
-
 
 ### `pgtestdb.Migrator`
 
@@ -452,6 +474,56 @@ For ramdisk/CI in particular, you may get some ideas from [this blog post](https
 -c 'max_connections=100'
 -c 'client_min_messages=warning'
 ```
+
+## How do I connect to the test databases through `pgx` / `pgxpool` instead of using the sql.DB interface?
+
+You can use `pgtestdb.Custom` to connect via `pgx`, `pgxpool`, or any other
+method of your choice. Here's an example of connecting via `pgx`.
+
+```go
+// pgtestdb uses the `sql` interfaces to interact with Postgres, you just have to
+// bring your own driver. Here we're using the PGX driver in stdlib mode, which
+// registers a driver with the name "pgx".
+import (
+  // ...
+  // register the PGX stdlib driver so that pgtestdb
+  // can create the test database.
+  _ "github.com/jackc/pgx/v5/stdlib"
+  // import pgx so that we can use it to connect to the database
+  "github.com/jackc/pgx/v5"
+  // ...
+)
+
+func TestCustom(t *testing.T) {
+  ctx := context.Background()
+  dbconf := pgtestdb.Config{
+      DriverName: "pgx",
+      User:       "postgres",
+      Password:   "password",
+      Host:       "localhost",
+      Port:       "5433",
+      Options:    "sslmode=disable",
+  }
+  m := defaultMigrator()
+  config := pgtestdb.Custom(t, dbconf, m)
+  check.NotEqual(t, dbconf, *config)
+
+  var conn *pgx.Conn
+  var err error
+  conn, err = pgx.Connect(ctx, config.URL())
+  assert.Nil(t, err)
+  defer func() {
+      err := conn.Close(ctx)
+      assert.Nil(t, err)
+  }()
+
+  var message string
+  err = conn.QueryRow(ctx, "select 'hello world'").Scan(&message)
+  assert.Nil(t, err)
+}
+```
+
+
 
 ## Does this mean I should stop writing unit tests and doing dependency injection?
 No! Please keep writing unit tests and doing dependency injection and mocking

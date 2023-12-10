@@ -31,7 +31,8 @@ type Config struct {
 	Options    string // URL-formatted additional options to pass in the connection string, "sslmode=disable&something=value"
 }
 
-// URL returns a postgres:// connection string
+// URL returns a postgres connection string in the format
+// "postgres://user:password@host:port/database?options=..."
 func (c Config) URL() string {
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?%s",
@@ -39,7 +40,7 @@ func (c Config) URL() string {
 	)
 }
 
-// Connect calls sql.Open() and connects to the database.
+// Connect calls `sql.Open()“ and connects to the database.
 func (c Config) Connect() (*sql.DB, error) {
 	db, err := sql.Open(c.DriverName, c.URL())
 	if err != nil {
@@ -82,9 +83,10 @@ type Migrator interface {
 	Verify(context.Context, *sql.DB, Config) error
 }
 
-// New returns a fresh database, prepared and migrated by the given migrator, by
-// get-or-creating a template database and then cloning it. This is a
-// concurrency-safe primitive. If there is an error creating the database, the
+// New connects to a postgres server and creates and connects to a fresh
+// database instance. This database is prepared and migrated by the given
+// migrator, by get-or-creating a template database and then cloning it. This is
+// a concurrency-safe primitive. If there is an error creating the database, the
 // test will be immediately failed with `t.Fatal()`.
 //
 // If this method succeeds, it will `t.Log()` the connection string to the
@@ -99,11 +101,34 @@ type Migrator interface {
 // pgtestdb to get a database for tests, benchmarks, and fuzzes.
 func New(t testing.TB, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
+	_, db := create(t, conf, migrator)
+	return db
+}
+
+// Custom is like [New] but after creating the new database instance, it closes
+// any connections and returns the configuration details of that database so
+// that you can connect to it explicitly, potentially via a different SQL
+// interface.
+func Custom(t testing.TB, conf Config, migrator Migrator) *Config {
+	t.Helper()
+	config, db := create(t, conf, migrator)
+	// Close `*sql.DB` connection that was opened during the creation process so
+	// that it the caller can connect to the database in any method of their
+	// choosing without interference from this existing connection.
+	if err := db.Close(); err != nil {
+		t.Fatalf("could not close test database: '%s': %s", config.Database, err)
+		return nil // uncreachable
+	}
+	return config
+}
+
+func create(t testing.TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
+	t.Helper()
 	ctx := context.Background()
 	baseDB, err := conf.Connect()
 	if err != nil {
 		t.Fatalf("could not connect to database: %s", err)
-		return nil // unreachable
+		return nil, nil // unreachable
 	}
 
 	if err := ensureUser(ctx, baseDB); err != nil {
@@ -118,26 +143,27 @@ func New(t testing.TB, conf Config, migrator Migrator) *sql.DB {
 	instance, err := createInstance(ctx, baseDB, *template)
 	if err != nil {
 		t.Fatalf("failed to create instance: %s", err)
-		return nil // unreachable
+		return nil, nil // unreachable
 	}
 	t.Logf("testdbconf: %s", instance.URL())
 
 	db, err := instance.Connect()
 	if err != nil {
 		t.Fatalf("failed to connect to instance: %s", err)
-		return nil // unreachable
+		return nil, nil // unreachable
 	}
+
 	t.Cleanup(func() {
 		// Close the testDB
 		if err := db.Close(); err != nil {
 			t.Fatalf("could not close test database: '%s': %s", instance.Database, err)
 			return // uncreachable
 		}
-		// If the test failed, leave the testdb around for further investigation
+		// If the test failed, leave the instance around for further investigation
 		if t.Failed() {
 			return
 		}
-		// Otherwise, remove the testdb from the server
+		// Otherwise, remove the instance from the server
 		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
 			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
@@ -156,7 +182,7 @@ func New(t testing.TB, conf Config, migrator Migrator) *sql.DB {
 		t.Fatal(fmt.Errorf("test database failed verification %s: %w", instance.Database, err))
 	}
 
-	return db
+	return instance, db
 }
 
 // user is used to guarantee that the testdb user/role is only get-or-created at
