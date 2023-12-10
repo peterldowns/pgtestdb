@@ -287,8 +287,8 @@ This creates and connects to a new test database, and ensures that all migration
 
 How does it work? Each time it's called, it:
 
-- Connects to a running Postgres server using the provided config
-- Ensures that there is a role `USER=testdbuser PASSWORD=password`
+- Connects to a running Postgres server using the provided config.
+- Ensures that there is a role `USER=pgtdbuser PASSWORD=pgtdbpass`.
 - Calls `Hash()` on the provided migrator to determine the name of the template
  database.
 - If the template database does not exist:
