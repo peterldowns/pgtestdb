@@ -93,7 +93,11 @@ type Migrator interface {
 //
 // If this method succeeds and your test succeeds, the database will be removed
 // as part of the test cleanup process.
-func New(t *testing.T, conf Config, migrator Migrator) *sql.DB {
+//
+// `testing.TB`  is the common testing interface
+// implemented by `*testing.T`, `*testing.B`, and `*testing.F`, so you can use
+// pgtestdb to get a database for tests, benchmarks, and fuzzes.
+func New(t testing.TB, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
 	baseDB, err := conf.Connect()

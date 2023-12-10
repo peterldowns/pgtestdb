@@ -277,7 +277,15 @@ func TestWithPgxStdlibDriver(t *testing.T) {
 ## API
 ### `pgtestdb.New`
 
-This creates a new test database or fails the test. Each time it's called it:
+```go
+func New(t testing.TB, conf Config, migrator Migrator) *sql.DB
+```
+
+This creates and connects to a new test database, and ensures that all migrations are run. If any part of this fails, the test is marked as a failure using `t.Fail()`
+
+[`testing.TB`](https://pkg.go.dev/testing#TB) is the common testing interface implemented by `*testing.T`, `*testing.B`, and `*testing.F`, so you can use pgtestdb to get a database for tests, benchmarks, and fuzzes.
+
+How does it work? Each time it's called, it:
 
 - Connects to a running Postgres server using the provided config
 - Ensures that there is a role `USER=testdbuser PASSWORD=password`
@@ -297,21 +305,14 @@ This creates a new test database or fails the test. Each time it's called it:
 
 It will use both golang-level locks and Postgres-level [advisory
 locks](https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS)
-to synchronize, meaning that your migrations will only run one time per test
-package no matter how many tests, or how many packages, you're testing at the
-same time.
+to synchronize, meaning that your migrations will only run one time no matter
+how many tests or packages are being tested in parallel.
 
 Once it creates your brand new fresh test database, pgtestdb will `t.Log()` the
 connection string so that iff your test fails you can connect to the database
 and figure out what happened.
 
 ### `pgtestdb.Config`
-
-The `Config` struct contains the details needed to connect to a Postgres server.
-Make sure to connect with a user that has the necessary permissions to create
-new databases and roles. Most likely you want to connect as the default
-`postgres` user, since you'll be connecting to a dedicated testing-only Postgres
-server as described earlier.
 
 ```go
 // This config will connect to a database with the connection string:
@@ -326,6 +327,13 @@ type Config struct {
   Options    string // "sslmode=disable&anotherSetting=value"
 }
 ```
+
+The `Config` struct contains the details needed to connect to a Postgres server.
+Make sure to connect with a user that has the necessary permissions to create
+new databases and roles. Most likely you want to connect as the default
+`postgres` user, since you'll be connecting to a dedicated testing-only Postgres
+server as described earlier.
+
 
 ### `pgtestdb.Migrator`
 
