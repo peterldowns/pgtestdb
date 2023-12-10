@@ -19,7 +19,6 @@
   "go.testEnvVars": {},
   "go.testFlags": ["-tags", "manual"],
   "go.coverageOptions": "showCoveredCodeOnly",
-  "go.buildOnSave": "off",
   "go.vetOnSave": "off",
   "go.useLanguageServer": true,
   "go.toolsManagement.autoUpdate": false,
