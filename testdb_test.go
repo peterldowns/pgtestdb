@@ -104,12 +104,12 @@ func TestExtensionsInstalled(t *testing.T) {
 }
 
 // These two tests should show that creating many different testdbs in parallel
-// is quite fast. Each of the tests creates and destroys 10 databases.
+// is quite fast. Each of the tests creates and destroys 50 databases.
 func TestParallel1(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 50; i++ {
 		t.Run(fmt.Sprintf("subtest_%d", i), func(t *testing.T) {
 			t.Parallel()
 			db := New(t)

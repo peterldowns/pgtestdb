@@ -154,6 +154,8 @@ func create(t testing.TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 	}
 
 	t.Cleanup(func() {
+		defer baseDB.Close()
+
 		// Close the testDB
 		if err := db.Close(); err != nil {
 			t.Fatalf("could not close test database: '%s': %s", instance.Database, err)

@@ -23,7 +23,6 @@ services:
       - "-c"
       - "log_statement=all"
       - "-c"
-      - "max_connections=1000"
+      - "max_connections=100"
     ports:
       - "5433:5432"
-
