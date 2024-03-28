@@ -322,7 +322,7 @@ func (s *sqlMigrator) Hash() (string, error) {
 func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
 	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
 		for _, migration := range s.migrations {
-			if _, err := db.ExecContext(ctx, migration); err != nil {
+			if _, err := conn.ExecContext(ctx, migration); err != nil {
 				return err
 			}
 		}
@@ -333,7 +333,7 @@ func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ pgtestdb.Config
 func (s *sqlMigrator) Prepare(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
 	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
 		for _, migration := range s.preparations {
-			if _, err := db.ExecContext(ctx, migration); err != nil {
+			if _, err := conn.ExecContext(ctx, migration); err != nil {
 				return err
 			}
 		}
