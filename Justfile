@@ -16,9 +16,9 @@ test *args='./...':
   go test -race "$@"
 
 # test pgtestdb + migrators
-test-all:
+test-all *args='':
   #!/usr/bin/env bash
-  go test -race github.com/peterldowns/pgtestdb/...
+  go test -race github.com/peterldowns/pgtestdb/... "$@"
 
 # lint pgtestdb
 lint *args:
