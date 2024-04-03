@@ -471,9 +471,46 @@ For ramdisk/CI in particular, you may get some ideas from [this blog post](https
 -c 'fsync=off'
 -c 'synchronous_commit=off'
 -c 'full_page_writes=off'
--c 'max_connections=100'
+-c 'max_connections=1000'
 -c 'client_min_messages=warning'
 ```
+
+## Why are my tests failing because they can't connect to Postgres?
+
+First, make sure the server is running and you can connect to it. But assuming
+you're seeing some kind of failure while running a larger test suite, the most likely
+problem is that you're exceeding the maximum number of connections your Postgres server is
+configured to accept. This may show up as a few different types of error messages:
+
+```
+--- FAIL: TestParallel2/subtest_34 (0.01s)
+    testdb_test.go:134: failed to create instance: failed to create instance from template testdb_tpl_ed8ae75db1176559951eadb85d6be0db: failed to connect to `host=localhost user=postgres database=`: server error (FATAL: sorry, too many clients already (SQLSTATE 53300))
+```
+
+or
+
+```
+--- FAIL: TestParallel2/subtest_25 (0.04s)
+    testdb_test.go:134: could not create pgtestdb user: sessionlock(testdb-user) failed to open conn: failed to connect to `host=localhost user=postgres database=`: dial error (dial tcp 127.0.0.1:5433: connect: connection refused
+  ```
+
+or
+
+```
+--- FAIL: TestNew (0.07s)
+    testdb_test.go:42: failed to migrator.Prepare template testdb_tpl_ed8ae75db1176559951eadb85d6be0db: sessionlock(test-sql-migrator) failed to open conn: failed to connect to `host=localhost user=pgtdbuser database=testdb_tpl_ed8ae75db1176559951eadb85d6be0db`: server error (FATAL: remaining connection slots are reserved for non-replication superuser connections (SQLSTATE 53300))
+```
+
+The fundamental way to fix this error is to make sure that you do not attempt
+more simultaneous connections to the server than it is ready to accept. Here are
+the best ways to do that, from easiest to most complicated:
+
+* Just don't run so many tests at once. If you're developing locally, and have a fast CI, you may not need to run the full test suite at once.
+* Set a higher value for your server's [`max_connections` parameter](https://www.postgresql.org/docs/current/runtime-config-connection.html), which defaults to 100. If you look at the [`docker-compose.yaml`](./docker-compose.yml) in this repo you'll see we set it to 1000. Assuming you're using a dockerized and tmpfs-backed test server on a beefy machine, you should be able to safely crank this really high.
+* Run fewer tests at the same time. You'll want to read the [go docs for the `-parallel` test flag and the `-p` build flag](https://pkg.go.dev/cmd/go) very carefully. You can also find these docs by running `go help build` and `go help tesflags`. Basically, `-p N` means go will run tests for up to `N` packages at the same time, and `-parallel Y` means it will run up to `Y` tests in parallel within each package. Both `N` and `Y` default to `GOMAXPROCS`, which is the number of logical CPUs in your machine. So by default, `go test ./...` can run up to `GOMAXPROCS * GOMAXPROCS` tests at the same time. You can try tuning `parallel Y` and `-p N` to set a hard limit of `N * Y` simultaneous tests, but that doesn't mean that you're using at most `N * Y` database connections --- depending on your test and application logic, you may actually use multiple connections at the same time. Sorry, it's confusing.
+* Consider putting a connection pooler in front of your test database. This is maybe easiest to do in CI but it's possible locally with a containerized instance of pgbouncer, for example. Your tests will still contend for your database's resources, but it may turn "tests failing" into "tests getting slower".
+
+It's worth noting that when you call `pgtestdb.New()` or `pgtestdb.Custom()`, the library will only use one active connection at any point in time. So if you have 100 tests running in parallel, pgtestdb will at most consume 100 simultaneous connections. Your own code in your tests may run multiple queries in parallel and consume more connections at once, though.
 
 ## How do I connect to the test databases through `pgx` / `pgxpool` instead of using the sql.DB interface?
 
