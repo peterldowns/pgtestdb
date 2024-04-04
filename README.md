@@ -1,6 +1,6 @@
 # 🧪 pgtestdb
 
-![Latest Version](https://badgers.space/badge/latest%20version/v0.0.12/blueviolet?corner_radius=m)
+![Latest Version](https://badgers.space/badge/latest%20version/v0.0.13/blueviolet?corner_radius=m)
 ![Golang](https://badgers.space/badge/golang/1.18+/blue?corner_radius=m)
 
 pgtestdb makes it cheap and easy to create ephemeral Postgres databases for your
@@ -12,23 +12,26 @@ everything.
 
 # Documentation
 
-- [This page, https://github.com/peterldowns/pgtestdb](https://github.com/peterldowns/pgtestdb)
+- [The github README, https://github.com/peterldowns/pgtestdb](https://github.com/peterldowns/pgtestdb)
 - [The go.dev docs, pkg.go.dev/github.com/peterldowns/pgtestdb](https://pkg.go.dev/github.com/peterldowns/pgtestdb)
 
-This page is the primary source for documentation. The code itself is supposed
-to be well-organized, and each function has a meaningful docstring, so you
-should be able to explore it quite easily using an LSP plugin, reading the
+The github README is the primary source for documentation. The code itself is
+supposed to be well-organized, and each function has a meaningful docstring, so
+you should be able to explore it quite easily using an LSP plugin, reading the
 code, or clicking through the go.dev docs.
 
 ## How does it work?
-Each time a test asks for a fresh database by calling `pgtestdb.New`, pgtestdb will
+Each time one of your tests asks for a fresh database by calling `pgtestdb.New`, pgtestdb will
 check to see if a template database already exists. If not, it creates a new
-database, runs your migrations on it, and then marks it as a template.  Once the
-template exists, it is _very_ fast to create a new database from that template.
+database, runs your migrations on it, and then marks it as a template. Once the
+template exists, it then creates a test-specific database from that template.
 
-pgtestdb only runs migrations one time when your migrations change. The marginal
-cost of a new test that uses the database is just the time to create a clone
-from the template, which is now basically free.
+Creating a new database from a template is _very_ fast, on the order of 10s of
+milliseconds.  And because pgtestdb uses advisory locks and hashes your
+migrations to determine which template database to use, your migrations only
+end up being run one time, regardless of how many tests or separate packages
+you have. This is true even across test runs --- pgtestdb will only run your
+migrations again if you change them in some way.
 
 When a test succeeds, the database it used is automatically deleted.
 When a test fails, the database it used is left alive, and the test logs will
@@ -334,13 +337,18 @@ config (see below.)
 ```go
 // Config contains the details needed to connect to a postgres server/database.
 type Config struct {
-  DriverName string // "pgx" (pgx) or "postgres" (lib/pq)
-  Host       string //  "localhost"
-  Port       string // "5433"
-  User       string //  "postgres"
-  Password   string // "password"
-  Database   string // "postgres"
-  Options    string // "sslmode=disable&anotherSetting=value"
+	DriverName string // the name of a driver to use when calling sql.Open() to connect to a database, "pgx" (pgx) or "postgres" (lib/pq)
+	Host       string // the host of the database, "localhost"
+	Port       string // the port of the database, "5433"
+	User       string // the user to connect as, "postgres"
+	Password   string // the password to connect with, "password"
+	Database   string // the database to connect to, "postgres"
+	Options    string // URL-formatted additional options to pass in the connection string, "sslmode=disable&something=value"
+	// TestRole is the role used to create and connect to the template database
+	// and each test database. If not provided, defaults to [DefaultRole].  The
+	// capabilities of this role should match the capabilities of the role that
+	// your application uses to connect to its database and run migrations.
+	TestRole *Role
 }
 
 // URL returns a postgres connection string in the format
@@ -356,6 +364,58 @@ Make sure to connect with a user that has the necessary permissions to create
 new databases and roles. Most likely you want to connect as the default
 `postgres` user, since you'll be connecting to a dedicated testing-only Postgres
 server as described earlier.
+
+### `pgtestdb.Role`
+A dedicated Postgres role (user) is used to create the template database and each test database. pgtestdb will create this role for you with sane defaults, but you can control the username, password, and capabilities of this role if desired.
+
+```go
+const (
+	// DefaultRoleUsername is the default name for the role that is created and
+	// used to create and connect to each test database.
+	DefaultRoleUsername = "pgtdbuser"
+	// DefaultRolePassword is the default password for the role that is created and
+	// used to create and connect to each test database.
+	DefaultRolePassword = "pgtdbpass"
+	// DefaultRoleCapabilities is the default set of capabilities for the role
+	// that is created and used to create and conect to each test database.
+	// This is locked down by default, and will not allow the creation of
+	// extensions.
+	DefaultRoleCapabilities = "NOSUPERUSER NOCREATEDB NOCREATEROLE"
+)
+
+// DefaultRole returns the default Role used to create and connect to the
+// template database and each test database.  It is a function, not a struct, to
+// prevent accidental overriding.
+func DefaultRole() Role {
+	return Role{
+		Username:     DefaultRoleUsername,
+		Password:     DefaultRolePassword,
+		Capabilities: DefaultRoleCapabilities,
+	}
+}
+
+// Role contains the details of a postgres role (user) that will be used
+// when creating and connecting to the template and test databases.
+type Role struct {
+	// The username for the role, defaults to [DefaultRoleUsername].
+	Username string
+	// The password for the role, defaults to [DefaultRolePassword].
+	Password string
+  // The capabilities that will be granted to the role, defaults to
+  // [DefaultRoleCapabilities].
+	Capabilities string
+}
+```  
+
+Because this role is used to connect to each template and each test database
+and run the migrations, its capabilities should match those of your production
+application. For instance, if in production your application connects as a
+superuser, you will want to pass a custom `Role` whthat includes the
+`SUPERUSER` capability so that your migrations will run the same in both
+envproduction and tests.
+
+This is a common case for many applications that install or activate extensions
+like [Postgis](https://postgis.net/), which require activation via a superuser.
 
 ### `pgtestdb.Migrator`
 
@@ -471,7 +531,7 @@ For ramdisk/CI in particular, you may get some ideas from [this blog post](https
 -c 'fsync=off'
 -c 'synchronous_commit=off'
 -c 'full_page_writes=off'
--c 'max_connections=1000'
+-c 'max_connections=100'
 -c 'client_min_messages=warning'
 ```
 

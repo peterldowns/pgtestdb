@@ -238,6 +238,61 @@ func TestMigrationWithConcurrentCreate(t *testing.T) {
 	}
 }
 
+func TestDefaultRolePreventsPostgis(t *testing.T) {
+	t.Parallel()
+	config := pgtestdb.Config{
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
+	}
+	migrator := &sqlMigrator{
+		migrations: []string{
+			// This requires SUPERUSER permissions, but by default they're
+			// not enabled, so it should fail.
+			"CREATE EXTENSION postgis;",
+		},
+	}
+	tt := &MockT{}
+	_ = pgtestdb.New(tt, config, migrator)
+	tt.DoCleanup()
+	assert.True(t, tt.Failed())
+}
+
+func TestCustomRoleAllowsPostgis(t *testing.T) {
+	t.Parallel()
+	config := pgtestdb.Config{
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
+		TestRole: &pgtestdb.Role{
+			// Must use a distinct name or it will collide with other tests that
+			// use the default username, but have non-SUPERUSER capabilities.
+			// TODO: figure out some way to detect a difference in capabilities
+			// and fail + warn the user about the collision.
+			// Or, TODO: figure out a way to include a hash of the capabilities
+			// on to the basename if there are custom capabilities? But then
+			// it's a pain and confusing. Blargh.
+			Username:     "pgtestdb-superuser",
+			Password:     pgtestdb.DefaultRolePassword,
+			Capabilities: "SUPERUSER",
+		},
+	}
+	migrator := &sqlMigrator{
+		migrations: []string{
+			// This will work since the migrations will be run with a role that
+			// has SUPERUSER permissions.
+			"CREATE EXTENSION postgis;",
+		},
+	}
+	_ = pgtestdb.New(t, config, migrator)
+}
+
 // pgtestdb.New should be able to connect with either lib/pq or pgx/stdlib.
 func TestWithLibPqAndPgxStdlibDrivers(t *testing.T) {
 	t.Parallel()
@@ -322,7 +377,7 @@ func (s *sqlMigrator) Hash() (string, error) {
 func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
 	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
 		for _, migration := range s.migrations {
-			if _, err := db.ExecContext(ctx, migration); err != nil {
+			if _, err := conn.ExecContext(ctx, migration); err != nil {
 				return err
 			}
 		}
@@ -333,7 +388,7 @@ func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ pgtestdb.Config
 func (s *sqlMigrator) Prepare(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
 	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
 		for _, migration := range s.preparations {
-			if _, err := db.ExecContext(ctx, migration); err != nil {
+			if _, err := conn.ExecContext(ctx, migration); err != nil {
 				return err
 			}
 		}
@@ -348,4 +403,37 @@ func (s *sqlMigrator) Verify(ctx context.Context, db *sql.DB, _ pgtestdb.Config)
 		}
 	}
 	return nil
+}
+
+// MockT implements the `TB“ interface so that we can check to see if a test
+// "would have failed".
+type MockT struct {
+	failed   bool
+	cleanups []func()
+}
+
+func (t *MockT) Fatalf(string, ...any) {
+	t.failed = true
+}
+
+func (*MockT) Logf(string, ...any) {
+	// no-op
+}
+
+func (*MockT) Helper() {
+	// no-op
+}
+
+func (t *MockT) Cleanup(f func()) {
+	t.cleanups = append(t.cleanups, f)
+}
+
+func (t *MockT) DoCleanup() {
+	for _, f := range t.cleanups {
+		f()
+	}
+}
+
+func (t *MockT) Failed() bool {
+	return t.failed
 }
