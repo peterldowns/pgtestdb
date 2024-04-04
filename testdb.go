@@ -7,28 +7,67 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"testing"
 
 	"github.com/peterldowns/pgtestdb/internal/once"
 	"github.com/peterldowns/pgtestdb/internal/sessionlock"
+	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
 const (
-	// TestUser is the username for connecting to each test database.
-	TestUser = "pgtdbuser"
-	// TestPassword is the password for connecting to each test database.
-	TestPassword = "pgtdbpass"
+	// DefaultRoleUsername is the default name for the role that is created and
+	// used to create and connect to each test database.
+	DefaultRoleUsername = "pgtdbuser"
+	// DefaultRolePassword is the default password for the role that is created and
+	// used to create and connect to each test database.
+	DefaultRolePassword = "pgtdbpass"
+	// DefaultRoleCapabilities is the default set of capabilities for the role
+	// that is created and used to create and conect to each test database.
+	// This is locked down by default, and will not allow the creation of
+	// extensions.
+	DefaultRoleCapabilities = "NOSUPERUSER NOCREATEDB NOCREATEROLE"
+	// Deprecated: prefer [DefaultRoleUsername].
+	TestUser = DefaultRoleUsername
+	// Deprecated: prefer [DefaultRolePassword].
+	TestPassword = DefaultRolePassword
 )
+
+// DefaultRole returns the default Role used to create and connect to the
+// template database and each test database.  It is a function, not a struct, to
+// prevent accidental overriding.
+func DefaultRole() Role {
+	return Role{
+		Username:     DefaultRoleUsername,
+		Password:     DefaultRolePassword,
+		Capabilities: DefaultRoleCapabilities,
+	}
+}
 
 // Config contains the details needed to connect to a postgres server/database.
 type Config struct {
-	DriverName string // the name of a driver to use when calling sql.Open() to connect to a database
+	DriverName string // the name of a driver to use when calling sql.Open() to connect to a database, "pgx" (pgx) or "postgres" (lib/pq)
 	Host       string // the host of the database, "localhost"
 	Port       string // the port of the database, "5433"
 	User       string // the user to connect as, "postgres"
 	Password   string // the password to connect with, "password"
 	Database   string // the database to connect to, "postgres"
 	Options    string // URL-formatted additional options to pass in the connection string, "sslmode=disable&something=value"
+	// TestRole is the role used to create and connect to the template database
+	// and each test database. If not provided, defaults to [DefaultRole].  The
+	// capabilities of this role should match the capabilities of the role that
+	// your application uses to connect to its database and run migrations.
+	TestRole *Role
+}
+
+// Role contains the details of a postgres role (user) that will be used
+// when creating and connecting to the template and test databases.
+type Role struct {
+	// The username for the role, defaults to [DefaultRoleUsername].
+	Username string
+	// The password for the role, defaults to [DefaultRolePassword].
+	Password string
+	// The capabilities that will be granted to the role, defaults to
+	// [DefaultRoleCapabilities].
+	Capabilities string
 }
 
 // URL returns a postgres connection string in the format
@@ -87,7 +126,7 @@ type Migrator interface {
 // database instance. This database is prepared and migrated by the given
 // migrator, by get-or-creating a template database and then cloning it. This is
 // a concurrency-safe primitive. If there is an error creating the database, the
-// test will be immediately failed with `t.Fatal()`.
+// test will be immediately failed with `t.Fatalf()`.
 //
 // If this method succeeds, it will `t.Log()` the connection string to the
 // created database, so that if your test fails, you can connect to the database
@@ -96,20 +135,32 @@ type Migrator interface {
 // If this method succeeds and your test succeeds, the database will be removed
 // as part of the test cleanup process.
 //
-// `testing.TB`  is the common testing interface
-// implemented by `*testing.T`, `*testing.B`, and `*testing.F`, so you can use
-// pgtestdb to get a database for tests, benchmarks, and fuzzes.
-func New(t testing.TB, conf Config, migrator Migrator) *sql.DB {
+// `TB` is a subset of the `testing.TB` testing interface implemented by
+// `*testing.T`, `*testing.B`, and `*testing.F`, so you can use pgtestdb to get
+// a database for tests, benchmarks, and fuzzes.
+func New(t TB, conf Config, migrator Migrator) *sql.DB {
 	t.Helper()
 	_, db := create(t, conf, migrator)
 	return db
+}
+
+// TB is a subset of the `testing.TB` testing interface implemented by
+// `*testing.T`, `*testing.B`, and `*testing.F`, so you can use pgtestdb to get
+// a database for tests, benchmarks, and fuzzes. It contains only the methods
+// actually needed by pgtestdb, defined so that we can more easily mock it.
+type TB interface {
+	Cleanup(func())
+	Failed() bool
+	Fatalf(format string, args ...any)
+	Helper()
+	Logf(format string, args ...any)
 }
 
 // Custom is like [New] but after creating the new database instance, it closes
 // any connections and returns the configuration details of that database so
 // that you can connect to it explicitly, potentially via a different SQL
 // interface.
-func Custom(t testing.TB, conf Config, migrator Migrator) *Config {
+func Custom(t TB, conf Config, migrator Migrator) *Config {
 	t.Helper()
 	config, db := create(t, conf, migrator)
 	// Close `*sql.DB` connection that was opened during the creation process so
@@ -122,7 +173,14 @@ func Custom(t testing.TB, conf Config, migrator Migrator) *Config {
 	return config
 }
 
-func create(t testing.TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
+// Helper
+// Fatalf
+// Fatal
+// Logf
+// Cleanup
+// Failed
+
+func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 	t.Helper()
 	ctx := context.Background()
 	baseDB, err := conf.Connect()
@@ -131,13 +189,21 @@ func create(t testing.TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 		return nil, nil // unreachable
 	}
 
-	if err := ensureUser(ctx, baseDB); err != nil {
+	// From this point onward, all functions assume that `conf.TestRole` is not nil.
+	// We default to the
+	if conf.TestRole == nil {
+		role := DefaultRole()
+		conf.TestRole = &role
+	}
+	if err := ensureUser(ctx, baseDB, conf); err != nil {
 		t.Fatalf("could not create pgtestdb user: %s", err)
+		return nil, nil // unreachable
 	}
 
 	template, err := getOrCreateTemplate(ctx, baseDB, conf, migrator)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%s", err)
+		return nil, nil // unreachable
 	}
 
 	instance, err := createInstance(ctx, baseDB, *template)
@@ -167,6 +233,7 @@ func create(t testing.TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
 			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
+			return // unreachable
 		}
 	})
 
@@ -179,43 +246,50 @@ func create(t testing.TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 	// Assumption: verification is >>> faster than performing the migrations,
 	// and is therefore safe to run at the beginning of each test.
 	if err := migrator.Verify(ctx, db, *instance); err != nil {
-		t.Fatal(fmt.Errorf("test database failed verification %s: %w", instance.Database, err))
+		t.Fatalf("test database failed verification %s: %w", instance.Database, err)
+		return nil, nil // unreachable
 	}
 
 	return instance, db
 }
 
-// user is used to guarantee that the testdb user/role is only get-or-created at
-// most once per program.
-var user once.Var[any] = once.NewVar[any]() //nolint:gochecknoglobals
+// user is used to guarantee that each testdb user/role is only get-or-created
+// at most once per program. Different calls to pgtestdb can specify different
+// roles, but each will be get-or-created at most one time per program, and will
+// be created only once no matter how many different programs or test suites run
+// at once, thanks to the use of session locks.
+var users once.Map[string, any] = once.NewMap[string, any]() //nolint:gochecknoglobals
 
 func ensureUser(
 	ctx context.Context,
 	baseDB *sql.DB,
+	conf Config,
 ) error {
-	_, err := user.Set(func() (*any, error) {
-		return nil, sessionlock.With(ctx, baseDB, "testdb-user", func(conn *sql.Conn) error {
+	username := conf.TestRole.Username
+	_, err := users.Set(username, func() (*any, error) {
+		return nil, sessionlock.With(ctx, baseDB, username, func(conn *sql.Conn) error {
 			// Get-or-create a role/user dedicated to connecting to these test databases.
 			var roleExists bool
 			query := "SELECT EXISTS (SELECT from pg_catalog.pg_roles WHERE rolname = $1)"
-			if err := conn.QueryRowContext(ctx, query, TestUser).Scan(&roleExists); err != nil {
-				return fmt.Errorf("failed to detect if role %s exists: %w", TestUser, err)
+			if err := conn.QueryRowContext(ctx, query, username).Scan(&roleExists); err != nil {
+				return fmt.Errorf("failed to detect if role %s exists: %w", username, err)
 			}
 			if roleExists {
 				return nil
 			}
 			if !roleExists {
-				query = fmt.Sprintf(`CREATE ROLE "%s"`, TestUser)
+				query = fmt.Sprintf(`CREATE ROLE "%s"`, username)
 				if _, err := conn.ExecContext(ctx, query); err != nil {
-					return fmt.Errorf("failed to create role %s: %w", TestUser, err)
+					return fmt.Errorf("failed to create role %s: %w", username, err)
 				}
 				query = fmt.Sprintf(
-					`ALTER ROLE "%s" WITH LOGIN PASSWORD '%s' NOSUPERUSER NOCREATEDB NOCREATEROLE`,
-					TestUser,
-					TestPassword,
+					`ALTER ROLE "%s" WITH LOGIN PASSWORD '%s' %s`,
+					username,
+					conf.TestRole.Password,
+					conf.TestRole.Capabilities,
 				)
 				if _, err := conn.ExecContext(ctx, query); err != nil {
-					return fmt.Errorf("failed to alter role and set password for %s: %w", TestUser, err)
+					return fmt.Errorf("failed to set password and capabilities for '%s': %w", username, err)
 				}
 			}
 			return nil
@@ -231,7 +305,7 @@ type templateState struct {
 	hash string
 }
 
-var states once.Map[string, templateState] = once.NewMap[string, templateState]() //nolint:gochecknoglobals
+var templates once.Map[string, templateState] = once.NewMap[string, templateState]() //nolint:gochecknoglobals
 
 // getOrCreateTemplate will get-or-create a template, synchronizing at
 // the golang level (with the states map, so that each template is
@@ -252,11 +326,21 @@ func getOrCreateTemplate(
 	dbconf Config,
 	migrator Migrator,
 ) (*templateState, error) {
-	hash, err := migrator.Hash()
+	mhash, err := migrator.Hash()
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate template hash: %w", err)
 	}
-	return states.Set(hash, func() (*templateState, error) {
+	// The migrator Hash() implementation is included, along with the role
+	// details, so that if the user runs tests in parallel with different role
+	// information, they each get their own database.
+	hash := common.NewRecursiveHash(
+		common.Field("Username", dbconf.TestRole.Username),
+		common.Field("Password", dbconf.TestRole.Password),
+		common.Field("Capabilities", dbconf.TestRole.Capabilities),
+		common.Field("MigratorHash", mhash),
+	).String()
+
+	return templates.Set(hash, func() (*templateState, error) {
 		// This function runs once per program, but only synchronizes access
 		// within a single program. When running larger test suites, each
 		// package's tests may run in parallel, which means this does not
@@ -264,13 +348,14 @@ func getOrCreateTemplate(
 		state := templateState{}
 		state.hash = hash
 		state.conf = dbconf
-		state.conf.User = TestUser
-		state.conf.Password = TestPassword
+		state.conf.TestRole = dbconf.TestRole
+		state.conf.User = dbconf.TestRole.Username
+		state.conf.Password = dbconf.TestRole.Password
 		state.conf.Database = fmt.Sprintf("testdb_tpl_%s", hash)
 		// sessionlock synchronizes the creation of the template with a
 		// session-scoped advisory lock.
 		err := sessionlock.With(ctx, baseDB, state.conf.Database, func(conn *sql.Conn) error {
-			return ensureTemplate(ctx, conn, migrator, &state)
+			return ensureTemplate(ctx, conn, migrator, state)
 		})
 		if err != nil {
 			return nil, err
@@ -288,7 +373,7 @@ func ensureTemplate(
 	ctx context.Context,
 	conn *sql.Conn,
 	migrator Migrator,
-	state *templateState,
+	state templateState,
 ) error {
 	// If the template database already exists, and is marked as a template,
 	// there is no more work to be done.

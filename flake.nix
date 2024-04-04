@@ -29,14 +29,16 @@
               packages = with pkgs; [
                 # Go
                 delve
-                go-outline
                 go
+                go-outline
                 golangci-lint
+                gomodifytags
                 gopkgs
                 gopls
+                gotests
                 gotools
+                impl
                 # Nix
-                rnix-lsp
                 nixpkgs-fmt
                 # Other
                 just
