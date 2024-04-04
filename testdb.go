@@ -122,6 +122,18 @@ type Migrator interface {
 	Verify(context.Context, *sql.DB, Config) error
 }
 
+// TB is a subset of the `testing.TB` testing interface implemented by
+// `*testing.T`, `*testing.B`, and `*testing.F`, so you can use pgtestdb to get
+// a database for tests, benchmarks, and fuzzes. It contains only the methods
+// actually needed by pgtestdb, defined so that we can more easily mock it.
+type TB interface {
+	Cleanup(func())
+	Failed() bool
+	Fatalf(format string, args ...any)
+	Helper()
+	Logf(format string, args ...any)
+}
+
 // New connects to a postgres server and creates and connects to a fresh
 // database instance. This database is prepared and migrated by the given
 // migrator, by get-or-creating a template database and then cloning it. This is
@@ -144,18 +156,6 @@ func New(t TB, conf Config, migrator Migrator) *sql.DB {
 	return db
 }
 
-// TB is a subset of the `testing.TB` testing interface implemented by
-// `*testing.T`, `*testing.B`, and `*testing.F`, so you can use pgtestdb to get
-// a database for tests, benchmarks, and fuzzes. It contains only the methods
-// actually needed by pgtestdb, defined so that we can more easily mock it.
-type TB interface {
-	Cleanup(func())
-	Failed() bool
-	Fatalf(format string, args ...any)
-	Helper()
-	Logf(format string, args ...any)
-}
-
 // Custom is like [New] but after creating the new database instance, it closes
 // any connections and returns the configuration details of that database so
 // that you can connect to it explicitly, potentially via a different SQL
@@ -168,18 +168,16 @@ func Custom(t TB, conf Config, migrator Migrator) *Config {
 	// choosing without interference from this existing connection.
 	if err := db.Close(); err != nil {
 		t.Fatalf("could not close test database: '%s': %s", config.Database, err)
-		return nil // uncreachable
+		return nil // unreachable
 	}
 	return config
 }
 
-// Helper
-// Fatalf
-// Fatal
-// Logf
-// Cleanup
-// Failed
-
+// create contains the implementation of [New] and [Custom], and is responsible
+// for actually creating the instance database to be used by a testcase.
+//
+// create will use at most one connection to the underlying database at any
+// given time.
 func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 	t.Helper()
 	ctx := context.Background()
@@ -219,20 +217,35 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 		return nil, nil // unreachable
 	}
 
+	if err := baseDB.Close(); err != nil {
+		t.Fatalf("could not close base database: '%s': %s", conf.Database, err)
+		return nil, nil // unreachable
+	}
+
 	t.Cleanup(func() {
 		// Close the testDB
 		if err := db.Close(); err != nil {
 			t.Fatalf("could not close test database: '%s': %s", instance.Database, err)
-			return // uncreachable
+			return // unreachable
 		}
 		// If the test failed, leave the instance around for further investigation
 		if t.Failed() {
 			return
 		}
-		// Otherwise, remove the instance from the server
+
+		// Otherwise, reconnect to the basedb and remove the instance from the server
+		baseDB, err := conf.Connect()
+		if err != nil {
+			t.Fatalf("could not connect to database: '%s': %s", conf.Database, err)
+			return
+		}
 		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
 			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
+			return // unreachable
+		}
+		if err := baseDB.Close(); err != nil {
+			t.Fatalf("could not close base database: '%s': %s", conf.Database, err)
 			return // unreachable
 		}
 	})
