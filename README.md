@@ -155,7 +155,7 @@ dedicated server for your tests.
 
 pgtestdb will connect to any postgres server as long as you can supply
 the username, password, host, port, and database name -- the config
-generates a psotgres connection string of the form `postgres://user:password@host:port/dbname?options`.
+generates a postgres connection string of the form `postgres://user:password@host:port/dbname?options`.
 
 Some common methods of running a Postgres server for pgtestdb:
 
@@ -411,8 +411,7 @@ Because this role is used to connect to each template and each test database
 and run the migrations, its capabilities should match those of your production
 application. For instance, if in production your application connects as a
 superuser, you will want to pass a custom `Role` whthat includes the
-`SUPERUSER` capability so that your migrations will run the same in both
-envproduction and tests.
+`SUPERUSER` capability so that your migrations will run the same in both environments.
 
 This is a common case for many applications that install or activate extensions
 like [Postgis](https://postgis.net/), which require activation via a superuser.
