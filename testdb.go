@@ -56,6 +56,11 @@ type Config struct {
 	// capabilities of this role should match the capabilities of the role that
 	// your application uses to connect to its database and run migrations.
 	TestRole *Role
+	// SkipCleanup prevents t.Cleanup from being invoked at the end of the test.
+	// Since this can result in large numbers of orphaned artifacts being left
+	// on the database server, it should only be used if another cleanup method
+	// is employed.
+	SkipCleanup bool
 }
 
 // Role contains the details of a postgres role (user) that will be used
@@ -233,20 +238,22 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 			return
 		}
 
-		// Otherwise, reconnect to the basedb and remove the instance from the server
-		baseDB, err := conf.Connect()
-		if err != nil {
-			t.Fatalf("could not connect to database: '%s': %s", conf.Database, err)
-			return
-		}
-		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
-		if _, err := baseDB.ExecContext(ctx, query); err != nil {
-			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
-			return // unreachable
-		}
-		if err := baseDB.Close(); err != nil {
-			t.Fatalf("could not close base database: '%s': %s", conf.Database, err)
-			return // unreachable
+		if !conf.SkipCleanup {
+			// Otherwise, reconnect to the basedb and remove the instance from the server
+			baseDB, err := conf.Connect()
+			if err != nil {
+				t.Fatalf("could not connect to database: '%s': %s", conf.Database, err)
+				return
+			}
+			query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
+			if _, err := baseDB.ExecContext(ctx, query); err != nil {
+				t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
+				return // unreachable
+			}
+			if err := baseDB.Close(); err != nil {
+				t.Fatalf("could not close base database: '%s': %s", conf.Database, err)
+				return // unreachable
+			}
 		}
 	})
 
