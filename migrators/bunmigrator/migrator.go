@@ -66,6 +66,7 @@ func WithMigrationOpts(opts ...migrate.MigrationOption) Option {
 //   - [WithFS] allows you to use an embedded filesystem.
 //   - [WithBunDBOpts] allows you to pass options to the underlying bun.DB struct.
 //   - [WithMigrationOpts] allows you to pass options to the Migrate() function.
+//   - [WithMigratorOpts] allows you to pass options to the Migrator struct.
 func New(migrationsDir string, opts ...Option) *BunMigrator {
 	bm := &BunMigrator{
 		MigrationsDir: migrationsDir,
@@ -83,7 +84,7 @@ func New(migrationsDir string, opts ...Option) *BunMigrator {
 // the migrations, this implementation only supports reading migration files
 // from disk or an embedded filesystem.
 //
-// BunMigrator does not perform any Verify() or Prepare() logic.
+// BunMigrator does not perform any Verify() logic.
 type BunMigrator struct {
 	MigrationsDir string
 	FS            fs.FS
