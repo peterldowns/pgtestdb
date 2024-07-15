@@ -99,8 +99,6 @@ func (bm *BunMigrator) Hash() (string, error) {
 
 // Migrate migrates the template database.
 func (bm *BunMigrator) Migrate(ctx context.Context, sqldb *sql.DB, _ pgtestdb.Config) error {
-	db := bun.NewDB(sqldb, pgdialect.New(), bm.BunDBOpts...)
-
 	var err error
 	migrations := migrate.NewMigrations()
 	if bm.FS == nil {
@@ -111,17 +109,24 @@ func (bm *BunMigrator) Migrate(ctx context.Context, sqldb *sql.DB, _ pgtestdb.Co
 	if err != nil {
 		return err
 	}
+	db := bun.NewDB(sqldb, pgdialect.New(), bm.BunDBOpts...)
 	m := migrate.NewMigrator(db, migrations, bm.MigratorOpts...)
-	_, err = m.Migrate(ctx, bm.MigrationOpts...)
-	return err
+	// Initialize the bun migrator, creating the tables that keep track of which
+	// migrations have been applied.
+	err = m.Init(ctx)
+	if err != nil {
+		return err
+	}
+	// Apply the migrations.
+	if _, err := m.Migrate(ctx, bm.MigrationOpts...); err != nil {
+		return err
+	}
+	return nil
 }
 
-// Prepare initialises the migration tables.
-func (bm *BunMigrator) Prepare(ctx context.Context, sqldb *sql.DB, _ pgtestdb.Config) error {
-	db := bun.NewDB(sqldb, pgdialect.New(), bm.BunDBOpts...)
-	m := migrate.NewMigrator(db, migrate.NewMigrations(), bm.MigratorOpts...)
-	err := m.Init(ctx)
-	return err
+// Prepare is a no-op method.
+func (*BunMigrator) Prepare(_ context.Context, _ *sql.DB, _ pgtestdb.Config) error {
+	return nil
 }
 
 // Verify is a no-op method.
