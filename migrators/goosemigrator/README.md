@@ -13,8 +13,8 @@ filesystem.
 [Golang-defined migrations](https://github.com/pressly/goose#go-migrations) are
 not supported by default.
 
-[You can configure the migrations directory, the table name, and the filesystem
-being used. Here's an example:]()
+You can configure the migrations directory, the table name, and the filesystem
+being used. Here's an example:
 
 ```go
 func TestGooseMigratorFromDisk(t *testing.T) {

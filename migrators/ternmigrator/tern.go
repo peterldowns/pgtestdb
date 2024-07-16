@@ -1,10 +1,8 @@
 package ternmigrator
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
-	"errors"
 	"io/fs"
 	"os"
 
@@ -17,7 +15,9 @@ import (
 
 var _ pgtestdb.Migrator = (*TernMigrator)(nil)
 
-const defaultTableName = "public.schema_version"
+// DefaultTableName is the default name for tern's migration table. This is
+// the same as the default value in the tern command line tool.
+const DefaultTableName = "public.schema_version"
 
 // Option provides a way to configure the TernMigrator struct and its behavior.
 //
@@ -49,7 +49,7 @@ func WithTableName(tableName string) Option {
 func New(migrationsDir string, opts ...Option) *TernMigrator {
 	tm := &TernMigrator{
 		MigrationsDir: migrationsDir,
-		TableName:     defaultTableName,
+		TableName:     DefaultTableName,
 	}
 	for _, opt := range opts {
 		opt(tm)
@@ -66,7 +66,7 @@ type TernMigrator struct {
 
 // Hash returns a hash of the migrations.
 func (tm *TernMigrator) Hash() (string, error) {
-	hash := common.NewRecursiveHash(common.Field("TableName", cmp.Or(tm.TableName, defaultTableName)))
+	hash := common.NewRecursiveHash(common.Field("TableName", tm.TableName))
 	err := hash.AddDirs(tm.FS, "*.sql", tm.MigrationsDir)
 	if err != nil {
 		return "", err
@@ -87,12 +87,17 @@ func (tm *TernMigrator) Migrate(ctx context.Context, _ *sql.DB, config pgtestdb.
 	if err != nil {
 		return err
 	}
-	defer func() { errOut = errors.Join(errOut, conn.Close(ctx)) }()
+	defer func() {
+		closeErr := conn.Close(ctx)
+		if errOut == nil {
+			errOut = closeErr
+		}
+	}()
 	fsys, err := tm.fsys()
 	if err != nil {
 		return err
 	}
-	mig, err := migrate.NewMigrator(ctx, conn, cmp.Or(tm.TableName, defaultTableName))
+	mig, err := migrate.NewMigrator(ctx, conn, tm.TableName)
 	if err != nil {
 		return err
 	}
