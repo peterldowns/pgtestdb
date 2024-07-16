@@ -3,24 +3,25 @@
 ![Latest Version](https://badgers.space/badge/latest%20version/v0.0.14/blueviolet?corner_radius=m)
 ![Golang](https://badgers.space/badge/golang/1.18+/blue?corner_radius=m)
 
-pgtestdb makes it cheap and easy to create ephemeral Postgres databases for your
-golang tests. It uses [template
+pgtestdb is a golang library that helps you write efficient database-backed tests.
+It uses [template
 databases](https://www.postgresql.org/docs/current/manage-ag-templatedbs.html)
-to give each test a fully prepared and migrated Postgres database &mdash; no
-mocking, no cleanup, no hassle. Bring your own migration framework, works with
-everything.
+to give each test a fully prepared and migrated Postgres database &mdash; 
+no mocking, no cleanup, no hassle. Your migrations only run once and each test
+only waits for ~20ms to get its own database. Comes with connectors for the most
+popular migration frameworks, works with everything.
 
 # Documentation
 
-- [The github README, https://github.com/peterldowns/pgtestdb](https://github.com/peterldowns/pgtestdb)
+- [The Github README, https://github.com/peterldowns/pgtestdb](https://github.com/peterldowns/pgtestdb)
 - [The go.dev docs, pkg.go.dev/github.com/peterldowns/pgtestdb](https://pkg.go.dev/github.com/peterldowns/pgtestdb)
 
-The github README is the primary source for documentation. The code itself is
+The Github README is the primary source for documentation. The code itself is
 supposed to be well-organized, and each function has a meaningful docstring, so
 you should be able to explore it quite easily using an LSP plugin, reading the
 code, or clicking through the go.dev docs.
 
-## How does it work?
+## How it works
 Each time one of your tests asks for a fresh database by calling `pgtestdb.New`, pgtestdb will
 check to see if a template database already exists. If not, it creates a new
 database, runs your migrations on it, and then marks it as a template. Once the
@@ -38,7 +39,11 @@ When a test fails, the database it used is left alive, and the test logs will
 include a connection string you can use to connect to it with `psql` and explore
 what happened.
 
-pgtestdb works with any migration framework, and includes out-of-the-box adaptors
+pgtestdb is concurrency-safe &mdash; becuase each of your tests gets its own
+database, you can and should run your tests in parallel.
+
+## Supported Migration Frameworks
+pgtestdb works with any migration framework, and includes out-of-the-box adapters
 for the most popular golang frameworks:
 
 - [pgmigrator](migrators/pgmigrator/) for [peterldowns/pgmigrate](https://github.com/peterldowns/pgmigrate)
@@ -49,7 +54,9 @@ for the most popular golang frameworks:
 - [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
 - [bunmigrator](migrators/bunmigrator/) for [uptrace/bun](https://github.com/uptrace/bun) (contributed by [@BrynBerkeley](https://github.com/BrynBerkeley))
 
-pgtestdb is concurrency-safe and I encourage you to run your tests in parallel.
+You can use pgtestdb with any migration tool: see the
+[`pgtestdb.Migrator`](#pgtestdbmigrator) docs for more information on writing
+your own adapter.
 
 ## Install
 
@@ -430,6 +437,7 @@ migration frameworks, you can use these right away:
 - [dbmatemigrator](migrators/dbmatemigrator/) for [amacneil/dbmate](https://github.com/amacneil/dbmate)
 - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
 - [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
+- [bunmigrator](migrators/bunmigrator/) for [uptrace/bun](https://github.com/uptrace/bun) (contributed by [@BrynBerkeley](https://github.com/BrynBerkeley))
 
 You can also write your own. The interface only requires you to make `Hash()`
 and `Migrate()` actually do anything, you can leave `Prepare()` and `Verify()`
@@ -514,6 +522,8 @@ The time to get a new clone seems pretty constant even for databases with large
 schemas.
 
 Everything depends on the speed of your server.
+
+For an example benchmark, check out [hallabro/lightning-fast-database-tests](https://github.com/hallabro/lightning-fast-database-tests), which contains code + slides from a Gophercon 2024 lightning talk given by [Robin Hallabro-Kokko](https://github.com/hallabro).
 
 ## How do I make it go faster?
 A ramdisk and turning off fsync is just the start &mdash; if you care about
@@ -620,8 +630,6 @@ func TestCustom(t *testing.T) {
 }
 ```
 
-
-
 ## Does this mean I should stop writing unit tests and doing dependency injection?
 No! Please keep writing unit tests and doing dependency injection and mocking
 and all the other things that make your code well-organized and easily
@@ -643,7 +651,6 @@ worth it. If you try it out and don't think so, please open an issue &mdash;
 I'd be very interested to see if I can make it work for you, too.
 
 ## How can I contribute?
-
 pgtestdb is a standard golang project, you'll need a working golang environment.
 If you're of the nix persuasion, this repo comes with a flakes-compatible
 development shell that you can enter with `nix develop` (flakes) or `nix-shell`
