@@ -56,6 +56,10 @@ type Config struct {
 	// capabilities of this role should match the capabilities of the role that
 	// your application uses to connect to its database and run migrations.
 	TestRole *Role
+	// ForceTerminateConnections will disconnect any remaining database
+	// connections prior to dropping the test database. If tests are flaky due
+	// to cleanup errors, this option may address those errors.
+	ForceTerminateConnections bool
 }
 
 // Role contains the details of a postgres role (user) that will be used
@@ -228,6 +232,7 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 			t.Fatalf("could not close test database: '%s': %s", instance.Database, err)
 			return // unreachable
 		}
+
 		// If the test failed, leave the instance around for further investigation
 		if t.Failed() {
 			return
@@ -239,13 +244,30 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 			t.Fatalf("could not connect to database: '%s': %s", conf.Database, err)
 			return
 		}
+
+		var closeErrMsgSuffix string
+		if conf.ForceTerminateConnections {
+			termConnections := fmt.Sprintf(`SELECT pg_terminate_backend(pg_stat_activity.pid)
+				FROM pg_stat_activity
+				WHERE pg_stat_activity.datname = '%s'
+				AND pid <> pg_backend_pid();`, instance.Database)
+			if _, err := baseDB.ExecContext(ctx, termConnections); err != nil {
+				t.Fatalf("could not terminate open connections on database '%s': %w",
+					instance.Database, err)
+				return // unreachable
+			}
+		} else {
+			closeErrMsgSuffix = ". consider [Config.ForceTerminateConnections]"
+		}
+
 		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
-			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
+			t.Fatalf("could not drop test database '%s': %s%s", instance.Database, err, closeErrMsgSuffix)
 			return // unreachable
 		}
+
 		if err := baseDB.Close(); err != nil {
-			t.Fatalf("could not close base database: '%s': %s", conf.Database, err)
+			t.Fatalf("could not close base database: '%s': %s%s", conf.Database, err, closeErrMsgSuffix)
 			return // unreachable
 		}
 	})
