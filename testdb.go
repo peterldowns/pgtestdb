@@ -239,6 +239,13 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 			t.Fatalf("could not connect to database: '%s': %s", conf.Database, err)
 			return
 		}
+
+		_, err = baseDB.ExecContext(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1`, instance.Database)
+		if err != nil {
+			t.Fatalf("could not terminate connections to test database '%s': %s", instance.Database, err)
+			return // unreachable
+		}
+
 		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
 			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
