@@ -9,4 +9,5 @@ use (
 	./migrators/pgmigrator
 	./migrators/sqlmigrator
 	./migrators/bunmigrator
+	./migrators/ternmigrator
 )
