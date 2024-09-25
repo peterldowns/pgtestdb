@@ -60,18 +60,14 @@ tag-migrators:
   #!/usr/bin/env bash
   set -e
   raw="$(cat VERSION)"
-  git tag "migrators/atlasmigrator/$raw"
-  git tag "migrators/dbmigrator/$raw"
+  git tag "migrators/pgmigrator/$raw"
   git tag "migrators/golangmigrator/$raw"
   git tag "migrators/goosemigrator/$raw"
+  git tag "migrators/dbmatemigrator/$raw"
+  git tag "migrators/atlasmigrator/$raw"
   git tag "migrators/sqlmigrator/$raw"
-  git tag "migrators/pgmigrator/$raw"
-  # commit="${raw}+commit.$(git rev-parse --short HEAD)"
-  # git tag "migrators/atlasmigrator/$commit"
-  # git tag "migrators/dbmigrator/$commit"
-  # git tag "migrators/golangmigrator/$commit"
-  # git tag "migrators/goosemigrator/$commit"
-  # git tag "migrators/sqlmigrator/$commit"
+  git tag "migrators/bunmigrator/$raw"
+  git tag "migrators/ternmigrator/$raw"
 
 # set the VERSION and go.mod versions.
 bump-version version:
