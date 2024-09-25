@@ -2,7 +2,6 @@ package pgtestdb
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -467,12 +466,11 @@ func createInstance(
 // It uses 32 random bits in the name, which means collisions are unlikely.
 func randomID() string {
 	bytes := make([]byte, 4)
-	hash := md5.New()
 	_, err := rand.Read(bytes)
 	if err != nil {
 		panic(err)
 	}
-	return hex.EncodeToString(hash.Sum(bytes))
+	return hex.EncodeToString(bytes)
 }
 
 // NoopMigrator fulfills the Migrator interface but does absolutely nothing.
