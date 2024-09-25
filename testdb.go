@@ -55,9 +55,12 @@ type Config struct {
 	// capabilities of this role should match the capabilities of the role that
 	// your application uses to connect to its database and run migrations.
 	TestRole *Role
-	// ForceTerminateConnections will disconnect any remaining database
-	// connections prior to dropping the test database. If tests are flaky due
-	// to cleanup errors, this option may address those errors.
+	// If true, ForceTerminateConnections will force-disconnect any remaining
+	// database connections prior to dropping the test database. This may be
+	// necessary if your code leaks database connections, intentionally or
+	// unintentionally. By default, if you leak a connection to a test database,
+	// pgtestdb will be unable to drop the database, and the test will be failed
+	// with a warning.
 	ForceTerminateConnections bool
 }
 
@@ -244,7 +247,6 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 			return
 		}
 
-		var closeErrMsgSuffix string
 		if conf.ForceTerminateConnections {
 			termConnections := fmt.Sprintf(`SELECT pg_terminate_backend(pg_stat_activity.pid)
 				FROM pg_stat_activity
@@ -255,18 +257,21 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 					instance.Database, err)
 				return // unreachable
 			}
-		} else {
-			closeErrMsgSuffix = ". consider [Config.ForceTerminateConnections]"
 		}
 
 		query := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s"`, instance.Database)
 		if _, err := baseDB.ExecContext(ctx, query); err != nil {
-			t.Fatalf("could not drop test database '%s': %s%s", instance.Database, err, closeErrMsgSuffix)
+			if !conf.ForceTerminateConnections {
+				t.Logf("pgtestdb failed to clean up the test database because there are still open connections to it.")
+				t.Logf("This usually means that your code is leaking database connections, which is usually bad.")
+				t.Logf("If you would like pgtestdb to force-terminate any open connections at the end of the testcase, set `ForceTerminateConnections = true` on your `pgtestdb.Config`")
+			}
+			t.Fatalf("could not drop test database '%s': %s", instance.Database, err)
 			return // unreachable
 		}
 
 		if err := baseDB.Close(); err != nil {
-			t.Fatalf("could not close base database: '%s': %s%s", conf.Database, err, closeErrMsgSuffix)
+			t.Fatalf("could not close base database: '%s': %s%s", conf.Database, err)
 			return // unreachable
 		}
 	})
