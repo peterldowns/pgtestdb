@@ -53,6 +53,7 @@ for the most popular golang frameworks:
 - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
 - [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
 - [bunmigrator](migrators/bunmigrator/) for [uptrace/bun](https://github.com/uptrace/bun) (contributed by [@BrynBerkeley](https://github.com/BrynBerkeley))
+- [ternmigrator](migrators/ternmigrator/) for [jackc/tern](https://github.com/jackc/tern) (contributed by [@WillAbides](https://github.com/WillAbides))
 
 You can use pgtestdb with any migration tool: see the
 [`pgtestdb.Migrator`](#pgtestdbmigrator) docs for more information on writing
@@ -428,8 +429,7 @@ like [Postgis](https://postgis.net/), which require activation via a superuser.
 
 The `Migrator` interface contains all of the logic needed to prepare a template
 database that can be cloned for each of your tests. pgtestdb requires you to
-supply a `Migrator` to work. I have written a few for the most popular
-migration frameworks, you can use these right away:
+supply a `Migrator` to work. There are already migrators for the most popular migration frameworks, you can use these right away:
 
 - [pgmigrator](migrators/pgmigrator/) for [peterldowns/pgmigrate](https://github.com/peterldowns/pgmigrate)
 - [golangmigrator](migrators/golangmigrator/) for [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
@@ -438,6 +438,7 @@ migration frameworks, you can use these right away:
 - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
 - [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
 - [bunmigrator](migrators/bunmigrator/) for [uptrace/bun](https://github.com/uptrace/bun) (contributed by [@BrynBerkeley](https://github.com/BrynBerkeley))
+- [ternmigrator](migrators/ternmigrator/) for [jackc/tern](https://github.com/jackc/tern) (contributed by [@WillAbides](https://github.com/WillAbides))
 
 You can also write your own. The interface only requires you to make `Hash()`
 and `Migrate()` actually do anything, you can leave `Prepare()` and `Verify()`
