@@ -4,7 +4,6 @@ package withdb
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -60,14 +59,16 @@ func WithDB(ctx context.Context, driverName string, cb func(*sql.DB) error) (fin
 	return cb(testDB)
 }
 
+// randomID is a helper for coming up with the names of the instance databases.
+// It uses 32 random bits in the name, which means collisions are unlikely.
 func randomID(prefix string) (string, error) {
-	bytes := make([]byte, 32)
-	hash := md5.New()
+	bytes := make([]byte, 4)
 	_, err := rand.Read(bytes)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(hash.Sum(bytes))), nil
+	suffix := hex.EncodeToString(bytes)
+	return fmt.Sprintf("%s_%s", prefix, suffix), nil
 }
 
 func connectionString(dbname string) string {
