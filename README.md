@@ -1,6 +1,6 @@
 # 🧪 pgtestdb
 
-![Latest Version](https://badgers.space/badge/latest%20version/v0.0.14/blueviolet?corner_radius=m)
+![Latest Version](https://badgers.space/badge/latest%20version/v0.0.15/blueviolet?corner_radius=m)
 ![Golang](https://badgers.space/badge/golang/1.18+/blue?corner_radius=m)
 
 pgtestdb is a golang library that helps you write efficient database-backed tests.
