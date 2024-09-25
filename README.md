@@ -358,6 +358,13 @@ type Config struct {
 	// capabilities of this role should match the capabilities of the role that
 	// your application uses to connect to its database and run migrations.
 	TestRole *Role
+	// If true, ForceTerminateConnections will force-disconnect any remaining
+	// database connections prior to dropping the test database. This may be
+	// necessary if your code leaks database connections, intentionally or
+	// unintentionally. By default, if you leak a connection to a test database,
+	// pgtestdb will be unable to drop the database, and the test will be failed
+	// with a warning.
+	ForceTerminateConnections bool
 }
 
 // URL returns a postgres connection string in the format

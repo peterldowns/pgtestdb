@@ -356,6 +356,59 @@ func defaultMigrator() pgtestdb.Migrator {
 	}
 }
 
+func TestDefaultDroppingBehaviorFailsWithOpenConnections(t *testing.T) {
+	t.Parallel()
+	conf := pgtestdb.Config{
+		DriverName: "pgx",
+		User:       "postgres",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5433",
+		Options:    "sslmode=disable",
+		// ForceTerminateConnections defaults to false
+	}
+	var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
+
+	tt := &MockT{}
+	db := pgtestdb.New(tt, conf, migrator)
+	db.SetMaxOpenConns(1)
+	// Intentionally hold the connection option by beginning a transaction and
+	// then never terminating it. Since `ForceTerminateConnections == false`,
+	// pgtestdb will error during its cleanup phase, and will mark the test as
+	// failed.
+	tx, err := db.Begin()
+	assert.Nil(t, err)
+	_ = tx
+	tt.DoCleanup()
+	assert.True(t, tt.Failed())
+}
+
+func TestForceTerminateConnectionsWorksCorrectly(t *testing.T) {
+	t.Parallel()
+	conf := pgtestdb.Config{
+		DriverName:                "pgx",
+		User:                      "postgres",
+		Password:                  "password",
+		Host:                      "localhost",
+		Port:                      "5433",
+		Options:                   "sslmode=disable",
+		ForceTerminateConnections: true,
+	}
+	var migrator pgtestdb.Migrator = pgtestdb.NoopMigrator{}
+	tt := &MockT{}
+	db := pgtestdb.New(tt, conf, migrator)
+	db.SetMaxOpenConns(1)
+	// Intentionally hold the connection option by beginning a transaction and
+	// then never terminating it. Since `ForceTerminateConnections == true`,
+	// pgtestdb will force-terminate this connection during its cleanup phase
+	// and the test will complete successfully.
+	tx, err := db.Begin()
+	assert.Nil(t, err)
+	_ = tx
+	tt.DoCleanup()
+	assert.False(t, tt.Failed())
+}
+
 // sqlMigrator is a test helper that satisfies the pgtestdb.Migrator interface.
 type sqlMigrator struct {
 	preparations  []string
