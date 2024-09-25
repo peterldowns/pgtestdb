@@ -271,7 +271,7 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 		}
 
 		if err := baseDB.Close(); err != nil {
-			t.Fatalf("could not close base database: '%s': %s%s", conf.Database, err)
+			t.Fatalf("could not close base database: '%s': %s", conf.Database, err)
 			return // unreachable
 		}
 	})
