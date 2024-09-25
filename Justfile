@@ -35,16 +35,16 @@ lint-nix:
 # (attempt) to tidy all go.mod files
 tidy:
   #!/usr/bin/env bash
-  go mod tidy
+  go mod tidy -go=1.18 -compat=1.18
   for subdir in ./migrators/*/; do
     pushd $subdir
-    go mod tidy
+    go mod tidy -go=1.18 -compat=1.18
     popd
   done
   rm -f go.work.sum
-  go mod tidy
+  go mod tidy -go=1.18 -compat=1.18
   go work sync
-  go mod tidy
+  go mod tidy -go=1.18 -compat=1.18
 
 # tag pgtestdb with current version
 tag:
