@@ -6,7 +6,7 @@ replace github.com/peterldowns/pgtestdb => ../../
 
 require (
 	github.com/jackc/pgx/v5 v5.5.5
-	github.com/peterldowns/pgtestdb v0.0.14
+	github.com/peterldowns/pgtestdb v0.0.15
 	github.com/peterldowns/testy v0.0.1
 )
 
