@@ -10,6 +10,7 @@ adapters for the most popular golang frameworks:
 - [atlasmigrator](migrators/atlasmigrator/) for [ariga/atlas](https://github.com/ariga/atlas)
 - [sqlmigrator](migrators/sqlmigrator/) for [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
 - [bunmigrator](migrators/bunmigrator/) for [uptrace/bun](https://github.com/uptrace/bun) (contributed by [@BrynBerkeley](https://github.com/BrynBerkeley))
+- [ternmigrator](migrators/ternmigrator/) for [jackc/tern](https://github.com/jackc/tern) (contributed by [@WillAbides](https://github.com/WillAbides))
 
 If you're writing your own `Migrator`, I recommend you use the existing ones
 as examples. Most migrators need to do some kind of file/directory hashing in
