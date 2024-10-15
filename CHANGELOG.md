@@ -84,13 +84,13 @@ more, but it seems like a reasonable target and is about a year old. Ratcheting
 up from go1.18+ to go1.21+ seems fine to me and will allow some small quality of
 life improvements and make contributing easier.
 
-### *Breaking*: remove `Prepare()` and `Verify()` from `pgmigrator.Migrator`
+### *Breaking*: remove `Prepare()` and `Verify()` from `pgtestdb.Migrator`
 
 ```go
 // Now:
 type Migrator interface {
-	Hash() (string, error)
-	Migrate(context.Context, *sql.DB, Config) error
+    Hash() (string, error)
+    Migrate(context.Context, *sql.DB, Config) error
 }
 // Before:
 type Migrator interface {
@@ -147,8 +147,6 @@ If you were relying on logic in the `Verify` method, you can move that logic to
 your `NewDB(t *testing.T)` helper function:
 
 ```go
-// NewDB is a helper that returns an open connection to a unique and isolated
-// test database, fully migrated and ready for you to query.
 func NewDB(t *testing.T) *sql.DB {
   t.Helper()
   conf := pgtestdb.Config{
@@ -159,17 +157,17 @@ func NewDB(t *testing.T) *sql.DB {
     Port:       "5433",
     Options:    "sslmode=disable",
   }
-  // You'll want to use a real migrator, this is just an example. See the rest
-  // of the docs for more information.
+
   var migrator pgtestdb.Migrator = &MyCustomMigrator{/* ... */}
   instanceConf := pgtestdb.Custom(t, conf, migrator)
   db, err := instanceConf.Connect()
   if err != nil {
     t.Fatalf("failed to connect to instance: %s", err)
   }
+
   // Run the Verify logic that was previously in the `Verify()` method of `MyCustomMigrator`
   if err := DoVerify(context.Background(), db, instanceConf); err != nil {
-    t.Fatalf("faield to verify instance: %s", err)
+    t.Fatalf("failed to verify instance: %s", err)
   }
   return db
 }
