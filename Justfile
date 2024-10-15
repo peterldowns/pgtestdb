@@ -36,12 +36,14 @@ lint-nix:
 tidy:
   #!/usr/bin/env bash
   go mod tidy -go=1.18 -compat=1.18
-  for subdir in ./migrators/*/; do
-    pushd $subdir
-    go mod tidy -go=1.18 -compat=1.18
-    popd
-  done
-  rm -f go.work.sum
+  pushd migrators/atlasmigrator; go mod tidy -go=1.18 -compat=1.18; popd
+  pushd migrators/bunmigrator; go mod tidy -go=1.21 -compat=1.21; popd
+  pushd migrators/dbmatemigrator; go mod tidy -go=1.18 -compat=1.18; popd
+  pushd migrators/golangmigrator; go mod tidy -go=1.18 -compat=1.18; popd
+  pushd migrators/goosemigrator; go mod tidy -go=1.18 -compat=1.18; popd
+  pushd migrators/pgmigrator; go mod tidy -go=1.18 -compat=1.18; popd
+  pushd migrators/sqlmigrator; go mod tidy -go=1.18 -compat=1.18; popd
+  pushd migrators/ternmigrator; go mod tidy -go=1.18 -compat=1.18; popd
   go mod tidy -go=1.18 -compat=1.18
   go work sync
   go mod tidy -go=1.18 -compat=1.18

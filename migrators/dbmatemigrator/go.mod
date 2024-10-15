@@ -7,7 +7,7 @@ replace github.com/peterldowns/pgtestdb => ../../
 require (
 	github.com/amacneil/dbmate/v2 v2.4.0
 	github.com/jackc/pgx/v5 v5.5.5
-	github.com/peterldowns/pgtestdb v0.0.15
+	github.com/peterldowns/pgtestdb v0.1.0
 	github.com/peterldowns/testy v0.0.1
 )
 

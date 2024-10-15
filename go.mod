@@ -2,6 +2,8 @@ module github.com/peterldowns/pgtestdb
 
 go 1.18
 
+toolchain go1.22.1
+
 require (
 	github.com/google/go-cmp v0.5.9
 	github.com/jackc/pgx/v5 v5.5.5
