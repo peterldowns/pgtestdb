@@ -108,7 +108,7 @@ func (gm *GooseMigrator) Migrate(
 	db *sql.DB,
 	_ pgtestdb.Config,
 ) error {
-	store, err := database.NewStore(database.DialectPostgres, goose.DefaultTablename)
+	store, err := database.NewStore(database.DialectPostgres, gm.TableName)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (gm *GooseMigrator) Migrate(
 	if err != nil {
 		return err
 	}
-	provider, err := goose.NewProvider("postgres", db, migrationsDir, providerOptions...)
+	provider, err := goose.NewProvider("", db, migrationsDir, providerOptions...)
 	if err != nil {
 		return err
 	}

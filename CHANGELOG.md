@@ -14,6 +14,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 -->
 
+## [v0.1.1] - 2024-10-15
+
+### Bugfix: GooseMigrator.Migrate() "dialect must be empty when using a custom store implementation"
+
+This bug was first detected immediatley after pushing v0.1.0; CI passed locally
+but [failed on main](https://github.com/peterldowns/pgtestdb/actions/runs/11353832019/job/31579725492) with this error:
+
+```
+ ?   	github.com/peterldowns/pgtestdb/internal/withdb	[no test files]
+ok  	github.com/peterldowns/pgtestdb	2.544s
+ok  	github.com/peterldowns/pgtestdb/internal/multierr	0.003s
+ok  	github.com/peterldowns/pgtestdb/internal/once	0.003s
+ok  	github.com/peterldowns/pgtestdb/internal/sessionlock	0.289s
+ok  	github.com/peterldowns/pgtestdb/migrators/atlasmigrator	0.566s
+ok  	github.com/peterldowns/pgtestdb/migrators/bunmigrator	0.306s
+ok  	github.com/peterldowns/pgtestdb/migrators/common	0.010s
+ok  	github.com/peterldowns/pgtestdb/migrators/dbmatemigrator	0.475s
+ok  	github.com/peterldowns/pgtestdb/migrators/golangmigrator	0.286s
+?   	github.com/peterldowns/pgtestdb/migrators/pgmigrator/migrations	[no test files]
+--- FAIL: TestGooseMigratorFromDisk (0.07s)
+    goose_test.go:21: failed to migrator.Migrate template testdb_tpl_b975d4cf2b5b60296612fea0fe385858: dialect must be empty when using a custom store implementation
+--- FAIL: TestGooseMigratorFromFS (0.08s)
+    goose_test.go:66: failed to migrator.Migrate template testdb_tpl_f65054fab233eabdfb95c95f7bf2e12a: dialect must be empty when using a custom store implementation
+FAIL
+FAIL	github.com/peterldowns/pgtestdb/migrators/goosemigrator	0.084s
+ok  	github.com/peterldowns/pgtestdb/migrators/pgmigrator	0.317s
+ok  	github.com/peterldowns/pgtestdb/migrators/sqlmigrator	0.217s
+ok  	github.com/peterldowns/pgtestdb/migrators/ternmigrator	0.186s
+FAIL
+```
+
+I introduced the bug in the `Migrate()` method, but did not detect it locally because
+the migrator's `Hash()` resolved to a database template that I had already created
+in my local postgres server. So basically:
+
+- Work on the code, run tests, everything works and a database template is created
+  for me locally.
+- Work on the code some more, introduce the breaking problem, don't notice because
+  when the tests run they re-use the existing database template and don't actually
+  call `Migrate()`
+- Release and push the code, resulting in CI failures on main because the database
+  template doesn't exist so the tests have to run the broken `Migrate()` method.
+
+Next time, I can avoid this type of problem by either:
+
+- Using Github branches + PRs to merge in changes; CI is required to pass there before
+  merging.
+- Remembering to drop and recreate the test database server when working on changes that
+  modify the `Migrate()` method.
+
+Sloppy; my apologies.
+
 ## [v0.1.0] - 2024-10-15
 
 ### *Breaking*: require go1.21.0+, drop support for go1.18, go1.19, go1.20

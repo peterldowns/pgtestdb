@@ -7,7 +7,7 @@ toolchain go1.22.1
 replace github.com/peterldowns/pgtestdb => ../../
 
 require (
-	github.com/peterldowns/pgtestdb v0.1.0
+	github.com/peterldowns/pgtestdb v0.1.1
 	github.com/peterldowns/testy v0.0.1
 	github.com/uptrace/bun v1.2.1
 	github.com/uptrace/bun/dialect/pgdialect v1.2.1
