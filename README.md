@@ -309,10 +309,8 @@ How does it work? Each time it's called, it:
  database.
 - If the template database does not exist:
   - Creates a new, empty, database.
-  - Gives `testdbuser` ownership of this database and all of its contents
+  - Gives `pgtdbuser` ownership of this database and all of its contents
     (schemas, tables, sequences).
-  - Calls `Prepare()` on the provided migrator to perform any pre-migration
-    preparation, like installing extensions or creating additional roles.
   - Calls `Migrate()` on the provided migrator to actually migrate the database schema.
   - Marks the database as a template
 - Creates a new database instance from the template
@@ -325,8 +323,15 @@ to synchronize, meaning that your migrations will only run one time no matter
 how many tests or packages are being tested in parallel.
 
 Once it creates your brand new fresh test database, pgtestdb will `t.Log()` the
-connection string so that iff your test fails you can connect to the database
-and figure out what happened.
+connection string to the database instance.
+
+If your test fails, the logs will show that connection string, and you can connect to it
+with any of your usual tools (`psql`) to help you debug by looking at the data left there
+at the end of the test.
+
+If your test passes, a hook registered with `t.Cleanup()` will remove the database
+instance that was used by the test.
+
 
 ### `pgtestdb.Custom` 
 
@@ -349,6 +354,9 @@ type Config struct {
 	DriverName string // the name of a driver to use when calling sql.Open() to connect to a database, "pgx" (pgx) or "postgres" (lib/pq)
 	Host       string // the host of the database, "localhost"
 	Port       string // the port of the database, "5433"
+  // User is the role that pgtestdb connects to the server with in order to
+  // create and manage databases that are used by the tests. Your user should
+  // have the SUPERUSER, CREATEDB, and CREATEROLE capabilities.
 	User       string // the user to connect as, "postgres"
 	Password   string // the password to connect with, "password"
 	Database   string // the database to connect to, "postgres"
@@ -376,7 +384,7 @@ func (c Config) Connect() (*sql.DB, error)
 ```
 
 The `Config` struct contains the details needed to connect to a Postgres server.
-Make sure to connect with a user that has the necessary permissions to create
+Make sure to connect with a user that has the necessary capabilities to create
 new databases and roles. Most likely you want to connect as the default
 `postgres` user, since you'll be connecting to a dedicated testing-only Postgres
 server as described earlier.
@@ -465,27 +473,14 @@ type Migrator interface {
   // would result in the same schema and data.
   Hash() (string, error)
 
-  // Prepare should perform any plugin or extension installations necessary to
-  // make the database ready for the migrations. For instance, you may want to
-  // enable certain extensions like `trigram` or `pgcrypto`, or creating or
-  // altering certain roles and permissions.
-  // Prepare will be given a *sql.DB connected to the template database.
-  Prepare(context.Context, *sql.DB, Config) error
-
   // Migrate is a function that actually performs the schema and data
   // migrations to provision a template database. The connection given to this
   // function is to an entirely new, empty, database. Migrate will be called
   // only once, when the template database is being created.
   Migrate(context.Context, *sql.DB, Config) error
-
-  // Verify is called each time you ask for a new test database instance. It
-  // should be cheaper than the call to Migrate(), and should return nil iff
-  // the database is in the correct state. An example implementation would be
-  // to check that all the migrations have been marked as applied, and
-  // otherwise return an error.
-  Verify(context.Context, *sql.DB, Config) error
 }
 ```
+
 If you're writing your own `Migrator`, I recommend you use the existing ones
 as examples. Most migrators need to do some kind of file/directory hashing in
 order to implement `Hash()` &mdash; you may want to use
@@ -503,6 +498,10 @@ nothing at all.
 // https://github.com/peterldowns/pgtestdb#pgtestdbmigrator
 type NoopMigrator struct{}
 ```
+
+If you'd like to run custom code before or after running migrations, I recommend
+writing a custom `Migrator` that embeds an existing `Migrator`. For details, see
+[this example](#TODO).
 
 # FAQ
 

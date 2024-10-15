@@ -123,13 +123,3 @@ func (bm *BunMigrator) Migrate(ctx context.Context, sqldb *sql.DB, _ pgtestdb.Co
 	}
 	return nil
 }
-
-// Prepare is a no-op method.
-func (*BunMigrator) Prepare(_ context.Context, _ *sql.DB, _ pgtestdb.Config) error {
-	return nil
-}
-
-// Verify is a no-op method.
-func (*BunMigrator) Verify(_ context.Context, _ *sql.DB, _ pgtestdb.Config) error {
-	return nil
-}

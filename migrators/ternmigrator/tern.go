@@ -107,9 +107,3 @@ func (tm *TernMigrator) Migrate(ctx context.Context, _ *sql.DB, config pgtestdb.
 	}
 	return mig.Migrate(ctx)
 }
-
-// Prepare does nothing.
-func (*TernMigrator) Prepare(context.Context, *sql.DB, pgtestdb.Config) error { return nil }
-
-// Verify does nothing.
-func (*TernMigrator) Verify(context.Context, *sql.DB, pgtestdb.Config) error { return nil }

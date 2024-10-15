@@ -86,6 +86,7 @@ func TestCustom(t *testing.T) {
 // The Prepare() method of our dummy migrator should have enabled the `pg_trgm`
 // and `pgcrypto` extensions. The `plpgsql` extension is always enabled by
 // default. This test makes sure that these extensions are installed.
+// TODO: update
 func TestExtensionsInstalled(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -100,7 +101,7 @@ func TestExtensionsInstalled(t *testing.T) {
 		assert.Nil(t, rows.Scan(&extname))
 		extnames = append(extnames, extname)
 	}
-	check.Equal(t, []string{"pg_trgm", "pgcrypto", "plpgsql"}, extnames)
+	check.Equal(t, []string{"plpgsql"}, extnames)
 }
 
 // These two tests should show that creating many different testdbs in parallel
@@ -238,7 +239,7 @@ func TestMigrationWithConcurrentCreate(t *testing.T) {
 	}
 }
 
-func TestDefaultRolePreventsPostgis(t *testing.T) {
+func TestDefaultRolePreventsCreateExtensionWithSuperuserPrivileges(t *testing.T) {
 	t.Parallel()
 	config := pgtestdb.Config{
 		DriverName: "pgx",
@@ -250,9 +251,10 @@ func TestDefaultRolePreventsPostgis(t *testing.T) {
 	}
 	migrator := &sqlMigrator{
 		migrations: []string{
-			// This requires SUPERUSER permissions, but by default they're
-			// not enabled, so it should fail.
-			"CREATE EXTENSION postgis;",
+			// This requires SUPERUSER permissions, but by default
+			// the connection has the capabilities "NOSUPERUSER NOCREATEROLE NOCREATEDB",
+			// so this statement should fail.
+			"CREATE EXTENSION pg_stat_statements;",
 		},
 	}
 	tt := &MockT{}
@@ -261,7 +263,7 @@ func TestDefaultRolePreventsPostgis(t *testing.T) {
 	assert.True(t, tt.Failed())
 }
 
-func TestCustomRoleAllowsPostgis(t *testing.T) {
+func TestCustomRoleAllowsCreateExtensionWithSuperuserPrivileges(t *testing.T) {
 	t.Parallel()
 	config := pgtestdb.Config{
 		DriverName: "pgx",
@@ -287,7 +289,7 @@ func TestCustomRoleAllowsPostgis(t *testing.T) {
 		migrations: []string{
 			// This will work since the migrations will be run with a role that
 			// has SUPERUSER permissions.
-			"CREATE EXTENSION postgis;",
+			"CREATE EXTENSION pg_stat_statements;",
 		},
 	}
 	_ = pgtestdb.New(t, config, migrator)
@@ -327,10 +329,6 @@ func TestWithLibPqAndPgxStdlibDrivers(t *testing.T) {
 // create a `migrations` table and a `cats` table, with some data.
 func defaultMigrator() pgtestdb.Migrator {
 	return &sqlMigrator{
-		preparations: []string{`
-			CREATE EXTENSION pgcrypto;
-			CREATE EXTENSION pg_trgm;
-		`},
 		migrations: []string{`
 			-- as if this were a real migrations tool that kept track of migrations
 			CREATE TABLE migrations (
@@ -348,11 +346,6 @@ func defaultMigrator() pgtestdb.Migrator {
 			INSERT INTO migrations (id)
 			VALUES ('cats_0001');
 		`},
-		// These queries will fail if the tables don't exist.
-		verifications: []string{
-			"SELECT COUNT(*) from cats;",
-			"SELECT COUNT(*) from migrations;",
-		},
 	}
 }
 
@@ -411,16 +404,11 @@ func TestForceTerminateConnectionsWorksCorrectly(t *testing.T) {
 
 // sqlMigrator is a test helper that satisfies the pgtestdb.Migrator interface.
 type sqlMigrator struct {
-	preparations  []string
-	migrations    []string
-	verifications []string
+	migrations []string
 }
 
 func (s *sqlMigrator) Hash() (string, error) {
 	hash := common.NewRecursiveHash()
-	for _, preparation := range s.preparations {
-		hash.Add([]byte(preparation))
-	}
 	for _, migration := range s.migrations {
 		hash.Add([]byte(migration))
 	}
@@ -436,26 +424,6 @@ func (s *sqlMigrator) Migrate(ctx context.Context, db *sql.DB, _ pgtestdb.Config
 		}
 		return nil
 	})
-}
-
-func (s *sqlMigrator) Prepare(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
-	return sessionlock.With(ctx, db, "test-sql-migrator", func(conn *sql.Conn) error {
-		for _, migration := range s.preparations {
-			if _, err := conn.ExecContext(ctx, migration); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
-func (s *sqlMigrator) Verify(ctx context.Context, db *sql.DB, _ pgtestdb.Config) error {
-	for _, verification := range s.verifications {
-		if _, err := db.ExecContext(ctx, verification); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // MockT implements the `TB“ interface so that we can check to see if a test

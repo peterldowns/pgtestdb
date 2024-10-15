@@ -114,21 +114,3 @@ func (m *DbmateMigrator) Migrate(
 	dbm.FS = m.FS
 	return dbm.CreateAndMigrate()
 }
-
-// Prepare is a no-op method.
-func (*DbmateMigrator) Prepare(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}
-
-// Verify is a no-op method.
-func (*DbmateMigrator) Verify(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}

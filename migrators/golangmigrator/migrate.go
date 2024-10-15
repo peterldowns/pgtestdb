@@ -90,21 +90,3 @@ func (gm *GolangMigrator) Migrate(
 	defer m.Close()
 	return m.Up()
 }
-
-// Prepare is a no-op method.
-func (*GolangMigrator) Prepare(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}
-
-// Verify is a no-op method.
-func (*GolangMigrator) Verify(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}

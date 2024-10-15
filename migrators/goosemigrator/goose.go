@@ -114,21 +114,3 @@ func (gm *GooseMigrator) Migrate(
 	// Actually runs the migrations.
 	return goose.Up(db, gm.MigrationsDir)
 }
-
-// Prepare is a no-op method.
-func (*GooseMigrator) Prepare(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}
-
-// Verify is a no-op method.
-func (*GooseMigrator) Verify(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}

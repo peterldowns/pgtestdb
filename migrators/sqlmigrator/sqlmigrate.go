@@ -62,21 +62,3 @@ func (sm *SQLMigrator) Migrate(
 	_, err := sm.MigrationSet.Exec(db, "postgres", sm.Source, migrate.Up)
 	return err
 }
-
-// Prepare is a no-op method.
-func (*SQLMigrator) Prepare(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}
-
-// Verify is a no-op method.
-func (*SQLMigrator) Verify(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}

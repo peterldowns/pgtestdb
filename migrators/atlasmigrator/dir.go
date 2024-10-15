@@ -58,21 +58,3 @@ func (m *DirMigrator) Migrate(
 	)
 	return err
 }
-
-// Prepare is a no-op method.
-func (*DirMigrator) Prepare(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}
-
-// Verify is a no-op method.
-func (*DirMigrator) Verify(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}

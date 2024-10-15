@@ -3,14 +3,12 @@ package pgmigrator
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"io/fs"
 
 	"github.com/peterldowns/pgmigrate"
 
 	"github.com/peterldowns/pgtestdb"
 
-	"github.com/peterldowns/pgtestdb/internal/multierr"
 	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
@@ -82,25 +80,4 @@ func (pgm *PGMigrator) Migrate(
 ) error {
 	_, err := pgm.m.Migrate(ctx, db)
 	return err
-}
-
-func (pgm *PGMigrator) Verify(
-	ctx context.Context,
-	db *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	verrs, err := pgm.m.Verify(ctx, db)
-	for _, verr := range verrs {
-		err = multierr.Join(fmt.Errorf(verr.Message))
-	}
-	return err
-}
-
-// Prepare is a no-op method.
-func (*PGMigrator) Prepare(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
 }

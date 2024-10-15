@@ -107,25 +107,11 @@ type Migrator interface {
 	// would result in the same schema and data.
 	Hash() (string, error)
 
-	// Prepare should perform any plugin or extension installations necessary to
-	// make the database ready for the migrations. For instance, you may want to
-	// enable certain extensions like `trigram` or `pgcrypto`, or creating or
-	// altering certain roles and permissions.
-	// Prepare will be given a *sql.DB connected to the template database.
-	Prepare(context.Context, *sql.DB, Config) error
-
 	// Migrate is a function that actually performs the schema and data
 	// migrations to provision a template database. The connection given to this
 	// function is to an entirely new, empty, database. Migrate will be called
 	// only once, when the template database is being created.
 	Migrate(context.Context, *sql.DB, Config) error
-
-	// Verify is called each time you ask for a new test database instance. It
-	// should be cheaper than the call to Migrate(), and should return nil iff
-	// the database is in the correct state. An example implementation would be
-	// to check that all the migrations have been marked as applied, and
-	// otherwise return an error.
-	Verify(context.Context, *sql.DB, Config) error
 }
 
 // TB is a subset of the `testing.TB` testing interface implemented by
@@ -275,19 +261,6 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 			return // unreachable
 		}
 	})
-
-	// Even if the template previously existed, verify that it was created
-	// successfully.
-	// This way if there was ever a mistake or problem creating the template, a
-	// test will find out at the site of `pgtestdb.New` rather than later in the
-	// test due to unexpected content in the database.
-	//
-	// Assumption: verification is >>> faster than performing the migrations,
-	// and is therefore safe to run at the beginning of each test.
-	if err := migrator.Verify(ctx, db, *instance); err != nil {
-		t.Fatalf("test database failed verification %s: %w", instance.Database, err)
-		return nil, nil // unreachable
-	}
 
 	return instance, db
 }
@@ -449,9 +422,6 @@ func ensureTemplate(
 	// fails, the template will remain and the developer can connect to it and
 	// investigate the failure. Subsequent attempts to create the template will
 	// remove it, since it didn't get marked as complete (datistemplate=true).
-	if err := migrator.Prepare(ctx, template, state.conf); err != nil {
-		return fmt.Errorf("failed to migrator.Prepare template %s: %w", state.conf.Database, err)
-	}
 	if err := migrator.Migrate(ctx, template, state.conf); err != nil {
 		return fmt.Errorf("failed to migrator.Migrate template %s: %w", state.conf.Database, err)
 	}
@@ -512,14 +482,6 @@ func (NoopMigrator) Hash() (string, error) {
 	return "noop", nil
 }
 
-func (NoopMigrator) Prepare(_ context.Context, _ *sql.DB, _ Config) error {
-	return nil
-}
-
 func (NoopMigrator) Migrate(_ context.Context, _ *sql.DB, _ Config) error {
-	return nil
-}
-
-func (NoopMigrator) Verify(_ context.Context, _ *sql.DB, _ Config) error {
 	return nil
 }

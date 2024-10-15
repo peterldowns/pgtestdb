@@ -58,21 +58,3 @@ func (m *SchemaMigrator) Migrate(
 	)
 	return err
 }
-
-// Prepare is a no-op method.
-func (*SchemaMigrator) Prepare(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}
-
-// Verify is a no-op method.
-func (*SchemaMigrator) Verify(
-	_ context.Context,
-	_ *sql.DB,
-	_ pgtestdb.Config,
-) error {
-	return nil
-}

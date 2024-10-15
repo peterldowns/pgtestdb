@@ -8,7 +8,7 @@ jobs:
   test:
     services:
       postgres:
-        image: postgis/postgis:15-master
+        image: postgres:15
         env:
           POSTGRES_PASSWORD: password
           # TODO: unable to turn off fsync easily, see

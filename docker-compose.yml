@@ -1,11 +1,6 @@
-version: "3.6"
 services:
   testdb:
-    # We're using postgis so that we can test the creation of the postgis
-    # extension, which requires superuser extensions.
-    # 
-    # To use the equivalent in plain postgres, use `postgres:15`
-    image: postgis/postgis:15-master
+    image: postgres:15
     environment:
       POSTGRES_PASSWORD: password
     restart: unless-stopped
