@@ -21,6 +21,12 @@ supposed to be well-organized, and each function has a meaningful docstring, so
 you should be able to explore it quite easily using an LSP plugin, reading the
 code, or clicking through the go.dev docs.
 
+## Changelog
+
+As of October 2024, all breaking changes, and most non-breaking changes, are
+documented in the [CHANGELOG](/CHANGELOG.md).
+
+
 ## How it works
 Each time one of your tests asks for a fresh database by calling `pgtestdb.New`, pgtestdb will
 check to see if a template database already exists. If not, it creates a new

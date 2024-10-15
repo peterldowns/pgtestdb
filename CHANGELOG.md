@@ -1,0 +1,157 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+<!-- 
+### Added
+### Fixed
+### Changed
+### Deprecated
+### Removed
+### Security
+-->
+
+## [v0.1.0] - 2024-10-15
+
+### *Breaking*: require go1.21.0+, drop support for go1.18, go1.19, go1.20
+
+[jackc/pgx/v5@latest](https://github.com/jackc/pgx/) uses some modern golang features
+like the `slices` package, therefore requiring consumers to use go1.21 or higher.
+
+Additionally, some of the migrators now require 1.21+ as well.
+
+The [official golang release policy](https://go.dev/doc/devel/release#policy) is:
+
+> Each major Go release is supported until there are two newer major releases.
+
+Since go1.23 and go1.22 have been released, go1.21 isn't really supported any
+more, but it seems like a reasonable target and is about a year old. Ratcheting
+up from go1.18+ to go1.21+ seems fine to me and will allow some small quality of
+life improvements and make contributing easier.
+
+### *Breaking*: remove `Prepare()` and `Verify()` from `pgmigrator.Migrator`
+
+```go
+// Now:
+type Migrator interface {
+	Hash() (string, error)
+	Migrate(context.Context, *sql.DB, Config) error
+}
+// Before:
+type Migrator interface {
+    Hash() (string, error)
+    Prepare(context.Context, *sql.DB, Config) error
+    Migrate(context.Context, *sql.DB, Config) error
+    Verify(context.Context, *sql.DB, Config) error
+}
+```
+
+The `Prepare()` method was removed because it was rarely used and none of the
+migrators implemented it, leading to confusion about when/how to implement it.
+
+- https://github.com/peterldowns/pgtestdb/issues/19
+- https://github.com/peterldowns/pgtestdb/pull/6
+
+
+If you were implementing `Prepare()` in your custom migrator, you can achieve the same
+effect by moving that logic to the beginning of your `Migrate()` function:
+
+```go
+type MyCustomMigrator struct {
+    // ...
+}
+
+func (m *MyCustomMigrator) Migrate(ctx context.Context, db *sql.DB, cfg Config) error {
+    // Code that was previously run in the `Prepare()` method
+    if err := m.DoPreparations(ctx, db, cfg); err != nil {
+        return err
+    }
+    // Migration logic
+    if err := m.ApplyMigrationsLikeBefore(ctx, db, cfg); err != nil {
+        return err
+    }
+    // If desired, any post-migrations customization, like inserting fixture data
+    if err := m.DoPostMigrationLogic(ctx, db, cfg); err != nil {
+        return err
+    }
+    return nil
+}
+```
+
+The `Verify()` method was only implemented by the `pgmigrator.Migrator`, and
+almost never detected any problems. `Verify()` was included in the interface
+because way back in the day, when I was first working on this library, I was
+somehow able to corrupt the template database prepared by the migrators.  When
+tests ran, they would create an instance from the existing template, but the
+template was missing all the tables. Or something like that. At this point, I
+believe those consistency issues have been addressed.  I have not seen a
+verification error since the public release of pgtestdb. The method is somewhat
+confusing, and I believe it's safe to remove it.
+
+If you were relying on logic in the `Verify` method, you can move that logic to
+your `NewDB(t *testing.T)` helper function:
+
+```go
+// NewDB is a helper that returns an open connection to a unique and isolated
+// test database, fully migrated and ready for you to query.
+func NewDB(t *testing.T) *sql.DB {
+  t.Helper()
+  conf := pgtestdb.Config{
+    DriverName: "pgx",
+    User:       "postgres",
+    Password:   "password",
+    Host:       "localhost",
+    Port:       "5433",
+    Options:    "sslmode=disable",
+  }
+  // You'll want to use a real migrator, this is just an example. See the rest
+  // of the docs for more information.
+  var migrator pgtestdb.Migrator = &MyCustomMigrator{/* ... */}
+  instanceConf := pgtestdb.Custom(t, conf, migrator)
+  db, err := instanceConf.Connect()
+  if err != nil {
+    t.Fatalf("failed to connect to instance: %s", err)
+  }
+  // Run the Verify logic that was previously in the `Verify()` method of `MyCustomMigrator`
+  if err := DoVerify(context.Background(), db, instanceConf); err != nil {
+    t.Fatalf("faield to verify instance: %s", err)
+  }
+  return db
+}
+```
+
+### Non-breaking: update [goosemigrator](/migrators/goosemigrator/) to use a [goose.Provider](https://pressly.github.io/goose/documentation/provider/)
+
+Goose v3 [added a new goose.Provider](https://pressly.github.io/goose/blog/2023/goose-provider/) type to allow
+users to run migrations without referencing a single package-level global variable. This is mostly an implementation
+detail but could result in warnings from the golang race detector in certain cases.
+
+Previously, the goosemigrator used a RW-lock to guard access to this shared
+global and prevent race-detector warnings. Now that the `goose.Provider` is
+available, the `goosemigrator` has been updated to use that instead.
+
+The `goosemigrator.GooseMigrator` interface is unchanged, and should behave the
+same as previously, but is now implemented differently. If you notice any
+problems please report them and I'll do my best to fix them.
+
+### Non-breaking: other tweaks
+
+- The docker-compose and github actions files now use postgres:15 for testing
+  pgtestdb. Previously we used postgis:15 in order to test that the default role
+  was not allowed to enable superuser extensions, but I was able to update the
+  tests to use the `pg_stat_statements` extension instead of `postgis` and confirm
+  the same behavior. This makes developing against pgtestdb slightly easier and
+  shouldn't impact correctness.
+
+- In VSCode, if you open up any of the golang stdlib code files, the `gopls` extension
+  [runs its analyses](https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md) on them.
+  This is annoying because it fills the VSCode "problems" view with lint errors that we cannot fix,
+  because they're in the standard library, not our project's code. The only error I noticed was
+  due to `unusedparams`, which we already lint for in our code with `golangci-lint`, so I updated
+  the shared VSCode settings to turn off this gopls analysis.
+
+ - Running `just tidy` updates all the `go.mod` files for the main library and
+   the migrators, but these should all be backwards-compatible changes. 
