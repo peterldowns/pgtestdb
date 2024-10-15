@@ -27,7 +27,10 @@
     "buildFlags": ["-tags", "manual"],
     "formatting.gofumpt": true,
     "formatting.local": "github.com/peterldowns/pgtestdb",
-    "build.directoryFilters": []
+    "build.expandWorkspaceToModule": true,
+    "ui.diagnostic.analyses": {
+      "unusedparams": false,
+    },
   },
   "[go]": {
     "editor.formatOnSave": true
