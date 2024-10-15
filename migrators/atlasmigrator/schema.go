@@ -26,8 +26,6 @@ func NewSchemaMigrator(
 // SchemaMigrator requires that it runs in an environment where the `atlas` CLI is
 // in the $PATH. It shells out to that program to perform its migrations,
 // as recommended by the Atlas maintainers.
-//
-// SchemaMigrator does not perform any Verify() or Prepare() logic.
 type SchemaMigrator struct {
 	SchemaFilePath string
 }

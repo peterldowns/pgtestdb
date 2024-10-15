@@ -83,27 +83,6 @@ func TestCustom(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-// The Prepare() method of our dummy migrator should have enabled the `pg_trgm`
-// and `pgcrypto` extensions. The `plpgsql` extension is always enabled by
-// default. This test makes sure that these extensions are installed.
-// TODO: update
-func TestExtensionsInstalled(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	db := New(t)
-	rows, err := db.QueryContext(ctx, "SELECT extname FROM pg_extension ORDER BY extname ASC")
-	assert.Nil(t, err)
-	defer rows.Close()
-
-	var extnames []string
-	for rows.Next() {
-		var extname string
-		assert.Nil(t, rows.Scan(&extname))
-		extnames = append(extnames, extname)
-	}
-	check.Equal(t, []string{"plpgsql"}, extnames)
-}
-
 // These two tests should show that creating many different testdbs in parallel
 // is quite fast. Each of the tests creates and destroys 10 databases.
 func TestParallel1(t *testing.T) {

@@ -57,8 +57,6 @@ func New(dir fs.FS, opts ...Option) (*PGMigrator, error) {
 }
 
 // PGMigrator is a pgtestdb.Migrator that uses pgmigrate to perform migrations.
-//
-// PGMigrator does not perform any Prepare() logic, but does implement Verify().
 type PGMigrator struct {
 	m *pgmigrate.Migrator
 }

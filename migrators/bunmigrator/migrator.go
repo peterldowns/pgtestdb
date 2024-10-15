@@ -83,8 +83,6 @@ func New(migrationsDir string, opts ...Option) *BunMigrator {
 // Because Hash() requires calculating a unique hash based on the contents of
 // the migrations, this implementation only supports reading migration files
 // from disk or an embedded filesystem.
-//
-// BunMigrator does not perform any Verify() logic.
 type BunMigrator struct {
 	MigrationsDir string
 	FS            fs.FS

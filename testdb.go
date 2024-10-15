@@ -94,7 +94,7 @@ func (c Config) Connect() (*sql.DB, error) {
 	return db, nil
 }
 
-// A Migrator is necessary to provision and verify the database that will be used as as template
+// A Migrator is necessary to provision the database that will be used as as template
 // for each test.
 type Migrator interface {
 	// Hash should return a unique identifier derived from the state of the database
@@ -127,7 +127,7 @@ type TB interface {
 }
 
 // New connects to a postgres server and creates and connects to a fresh
-// database instance. This database is prepared and migrated by the given
+// database instance. This database is migrated by the given
 // migrator, by get-or-creating a template database and then cloning it. This is
 // a concurrency-safe primitive. If there is an error creating the database, the
 // test will be immediately failed with `t.Fatalf()`.

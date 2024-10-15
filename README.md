@@ -320,8 +320,6 @@ How does it work? Each time it's called, it:
   - Calls `Migrate()` on the provided migrator to actually migrate the database schema.
   - Marks the database as a template
 - Creates a new database instance from the template
-- Calls `Verify()` on the provided migrator to confirm that the new test database
-  is in the correct state.
 
 It will use both golang-level locks and Postgres-level [advisory
 locks](https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS)
@@ -461,12 +459,11 @@ supply a `Migrator` to work. There are already migrators for the most popular mi
 - [bunmigrator](migrators/bunmigrator/) for [uptrace/bun](https://github.com/uptrace/bun) (contributed by [@BrynBerkeley](https://github.com/BrynBerkeley))
 - [ternmigrator](migrators/ternmigrator/) for [jackc/tern](https://github.com/jackc/tern) (contributed by [@WillAbides](https://github.com/WillAbides))
 
-You can also write your own. The interface only requires you to make `Hash()`
-and `Migrate()` actually do anything, you can leave `Prepare()` and `Verify()`
-as no-op methods.
+You can also write your own, and/or embed the existing migrators into your own
+to run custom logic before/after running migrations.
 
 ```go
-// A Migrator is necessary to provision and verify the database that will be used as as template
+// A Migrator is necessary to provision the database that will be used as as template
 // for each test.
 type Migrator interface {
   // Hash should return a unique identifier derived from the state of the database

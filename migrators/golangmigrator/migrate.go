@@ -56,8 +56,6 @@ func New(migrationsDir string, opts ...Option) *GolangMigrator {
 // Because Hash() requires calculating a unique hash based on the contents of
 // the migrations, database, this implementation only supports reading migration
 // files from disk or an embedded filesystem.
-//
-// GolangMigrator does not perform any Verify() or Prepare() logic.
 type GolangMigrator struct {
 	// Where the migrations come from
 	MigrationsDir string

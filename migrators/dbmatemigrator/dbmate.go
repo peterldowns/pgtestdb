@@ -80,8 +80,6 @@ func New(opts ...Option) *DbmateMigrator {
 }
 
 // DbmateMigrator is a pgtestdb.Migrator that uses dbmate to perform migrations.
-//
-// DbmateMigrator does not perform any Verify() or Prepare() logic.
 type DbmateMigrator struct {
 	MigrationsDir       []string
 	MigrationsTableName string
