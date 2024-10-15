@@ -4,27 +4,25 @@ import (
 	"context"
 	"database/sql"
 	"io/fs"
-	"sync"
+	"os"
 
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/database"
 
 	"github.com/peterldowns/pgtestdb"
 	"github.com/peterldowns/pgtestdb/migrators/common"
 )
 
-// The mutex here makes this Migrator concurrency-safe. Goose uses Postgres
-// advisory locks as off /v4, which is great, but doesn't prevent issues where
-// multiple different tests running in parallel may attempt to run migrations at
-// the same time.
-var gooseLock sync.Mutex //nolint:gochecknoglobals
-
 // Goose doesn't provide a constant for the default value.
 // This will be `"goose_db_version"`.
-var DefaultTableName = goose.TableName() //nolint:gochecknoglobals
+var DefaultTableName = goose.DefaultTablename //nolint:gochecknoglobals
 
-// Option provides a way to configure the GooseMigrator struct and its behavior.
+// Option provides a way to configure the `goose.Provider` used by [GooseMigrator] to
+// run migrations.
 //
-// goose-migrate documentation: https://github.com/pressly/goose#migrations
+// goose-migrate documentation:
+// - https://github.com/pressly/goose#migrations
+// - https://pressly.github.io/goose/documentation/provider/
 //
 // See:
 //   - [WithTableName]
@@ -46,7 +44,7 @@ func WithTableName(tableName string) Option {
 
 // WithFS specifies a `fs.FS` from which to read the migration files.
 //
-// Default: `<nil>` (reads from the real filesystem)
+// Default: `os.DirFS(".")` (reads from the real filesystem in the current working directory)
 //
 // https://github.com/pressly/goose#embedded-sql-migrations
 func WithFS(dir fs.FS) Option {
@@ -55,8 +53,11 @@ func WithFS(dir fs.FS) Option {
 	}
 }
 
-// New returns a [GooseMigrator], which is a pgtestdb.Migrator that
-// uses goose to perform migrations.
+// New returns a [GooseMigrator], which is a pgtestdb.Migrator that creates a
+// `goose.Provider` to perform migrations. It is limited in functionality and
+// does not allow you to configure the full range of `goose.ProviderOptions`.
+// If you need a more complicated implementation, please write your own (and
+// consider contributing it back to this project!)
 //
 // `migrationsDir` is the path to the directory containing migration files.
 //
@@ -67,6 +68,7 @@ func New(migrationsDir string, opts ...Option) *GooseMigrator {
 	gm := &GooseMigrator{
 		MigrationsDir: migrationsDir,
 		TableName:     DefaultTableName,
+		FS:            os.DirFS("."),
 	}
 	for _, opt := range opts {
 		opt(gm)
@@ -74,13 +76,16 @@ func New(migrationsDir string, opts ...Option) *GooseMigrator {
 	return gm
 }
 
-// GooseMigrator is a pgtestdb.Migrator that uses goose to perform migrations.
+// GooseMigrator is a [pgtestdb.Migrator] that uses goose to perform migrations.
 //
 // Because Hash() requires calculating a unique hash based on the contents of
 // the migrations, database, this implementation only supports reading migration
-// files from disk or an embedded filesystem.
+// files from disk or an embedded filesystem, and disables the global golang
+// function migration registry.
 //
-// GooseMigrator doe snot perform any Verify() or Prepare() logic.
+// GooseMigrator does not allow specifying ExcludeNames or ExcludeVersions
+// and will configure goose to run all the migrations ending in `*.sql` within
+// the given filesystem and directory.
 type GooseMigrator struct {
 	TableName     string
 	MigrationsDir string
@@ -99,18 +104,26 @@ func (gm *GooseMigrator) Hash() (string, error) {
 
 // Migrate runs migrate.Up() to migrate the template database.
 func (gm *GooseMigrator) Migrate(
-	_ context.Context,
+	ctx context.Context,
 	db *sql.DB,
 	_ pgtestdb.Config,
 ) error {
-	gooseLock.Lock()
-	defer gooseLock.Unlock()
-	// Prepare the Goose global state.
-	goose.SetBaseFS(gm.FS)
-	goose.SetTableName(gm.TableName)
-	if err := goose.SetDialect("postgres"); err != nil {
+	store, err := database.NewStore(database.DialectPostgres, goose.DefaultTablename)
+	if err != nil {
 		return err
 	}
-	// Actually runs the migrations.
-	return goose.Up(db, gm.MigrationsDir)
+	providerOptions := []goose.ProviderOption{
+		goose.WithStore(store),
+		goose.WithDisableGlobalRegistry(true),
+	}
+	migrationsDir, err := fs.Sub(gm.FS, gm.MigrationsDir)
+	if err != nil {
+		return err
+	}
+	provider, err := goose.NewProvider("postgres", db, migrationsDir, providerOptions...)
+	if err != nil {
+		return err
+	}
+	_, err = provider.Up(ctx)
+	return err
 }
