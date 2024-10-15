@@ -69,6 +69,21 @@ tag-migrators:
   git tag "migrators/bunmigrator/$raw"
   git tag "migrators/ternmigrator/$raw"
 
+goproxy-release:
+  #!/usr/bin/env bash
+  set -e
+  export GOPROXY=proxy.golang.org
+  version="$(cat VERSION)"
+  go list -m github.com/peterldowns/pgtestdb@${version}
+  go list -m github.com/peterldowns/pgtestdb/migrators/pgmigrator@${version}
+  go list -m github.com/peterldowns/pgtestdb/migrators/golangmigrator@${version}
+  go list -m github.com/peterldowns/pgtestdb/migrators/goosemigrator@${version}
+  go list -m github.com/peterldowns/pgtestdb/migrators/dbmatemigrator@${version}
+  go list -m github.com/peterldowns/pgtestdb/migrators/atlasmigrator@${version}
+  go list -m github.com/peterldowns/pgtestdb/migrators/sqlmigrator@${version}
+  go list -m github.com/peterldowns/pgtestdb/migrators/bunmigrator@${version}
+  go list -m github.com/peterldowns/pgtestdb/migrators/ternmigrator@${version}
+
 # set the VERSION and go.mod versions.
 bump-version version:
   #!/usr/bin/env bash
