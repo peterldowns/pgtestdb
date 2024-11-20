@@ -45,7 +45,7 @@ When a test fails, the database it used is left alive, and the test logs will
 include a connection string you can use to connect to it with `psql` and explore
 what happened.
 
-pgtestdb is concurrency-safe &mdash; becuase each of your tests gets its own
+pgtestdb is concurrency-safe &mdash; because each of your tests gets its own
 database, you can and should run your tests in parallel.
 
 ## Supported Migration Frameworks
