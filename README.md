@@ -355,28 +355,28 @@ config (see below.)
 ```go
 // Config contains the details needed to connect to a postgres server/database.
 type Config struct {
-	DriverName string // the name of a driver to use when calling sql.Open() to connect to a database, "pgx" (pgx) or "postgres" (lib/pq)
-	Host       string // the host of the database, "localhost"
-	Port       string // the port of the database, "5433"
-  // User is the role that pgtestdb connects to the server with in order to
-  // create and manage databases that are used by the tests. Your user should
-  // have the SUPERUSER, CREATEDB, and CREATEROLE capabilities.
-	User       string // the user to connect as, "postgres"
-	Password   string // the password to connect with, "password"
-	Database   string // the database to connect to, "postgres"
-	Options    string // URL-formatted additional options to pass in the connection string, "sslmode=disable&something=value"
-	// TestRole is the role used to create and connect to the template database
-	// and each test database. If not provided, defaults to [DefaultRole].  The
-	// capabilities of this role should match the capabilities of the role that
-	// your application uses to connect to its database and run migrations.
-	TestRole *Role
-	// If true, ForceTerminateConnections will force-disconnect any remaining
-	// database connections prior to dropping the test database. This may be
-	// necessary if your code leaks database connections, intentionally or
-	// unintentionally. By default, if you leak a connection to a test database,
-	// pgtestdb will be unable to drop the database, and the test will be failed
-	// with a warning.
-	ForceTerminateConnections bool
+    DriverName string // the name of a driver to use when calling sql.Open() to connect to a database, "pgx" (pgx) or "postgres" (lib/pq)
+    Host       string // the host of the database, "localhost"
+    Port       string // the port of the database, "5433"
+    // User is the role that pgtestdb connects to the server with in order to
+    // create and manage databases that are used by the tests. Your user should
+    // have the SUPERUSER, CREATEDB, and CREATEROLE capabilities.
+    User       string // the user to connect as, "postgres"
+    Password   string // the password to connect with, "password"
+    Database   string // the database to connect to, "postgres"
+    Options    string // URL-formatted additional options to pass in the connection string, "sslmode=disable&something=value"
+    // TestRole is the role used to create and connect to the template database
+    // and each test database. If not provided, defaults to [DefaultRole].  The
+    // capabilities of this role should match the capabilities of the role that
+    // your application uses to connect to its database and run migrations.
+    TestRole *Role
+    // If true, ForceTerminateConnections will force-disconnect any remaining
+    // database connections prior to dropping the test database. This may be
+    // necessary if your code leaks database connections, intentionally or
+    // unintentionally. By default, if you leak a connection to a test database,
+    // pgtestdb will be unable to drop the database, and the test will be failed
+    // with a warning.
+    ForceTerminateConnections bool
 }
 
 // URL returns a postgres connection string in the format
@@ -398,40 +398,40 @@ A dedicated Postgres role (user) is used to create the template database and eac
 
 ```go
 const (
-	// DefaultRoleUsername is the default name for the role that is created and
-	// used to create and connect to each test database.
-	DefaultRoleUsername = "pgtdbuser"
-	// DefaultRolePassword is the default password for the role that is created and
-	// used to create and connect to each test database.
-	DefaultRolePassword = "pgtdbpass"
-	// DefaultRoleCapabilities is the default set of capabilities for the role
-	// that is created and used to create and conect to each test database.
-	// This is locked down by default, and will not allow the creation of
-	// extensions.
-	DefaultRoleCapabilities = "NOSUPERUSER NOCREATEDB NOCREATEROLE"
+    // DefaultRoleUsername is the default name for the role that is created and
+    // used to create and connect to each test database.
+    DefaultRoleUsername = "pgtdbuser"
+    // DefaultRolePassword is the default password for the role that is created and
+    // used to create and connect to each test database.
+    DefaultRolePassword = "pgtdbpass"
+    // DefaultRoleCapabilities is the default set of capabilities for the role
+    // that is created and used to create and conect to each test database.
+    // This is locked down by default, and will not allow the creation of
+    // extensions.
+    DefaultRoleCapabilities = "NOSUPERUSER NOCREATEDB NOCREATEROLE"
 )
 
 // DefaultRole returns the default Role used to create and connect to the
 // template database and each test database.  It is a function, not a struct, to
 // prevent accidental overriding.
 func DefaultRole() Role {
-	return Role{
-		Username:     DefaultRoleUsername,
-		Password:     DefaultRolePassword,
-		Capabilities: DefaultRoleCapabilities,
-	}
+    return Role{
+        Username:     DefaultRoleUsername,
+        Password:     DefaultRolePassword,
+        Capabilities: DefaultRoleCapabilities,
+    }
 }
 
 // Role contains the details of a postgres role (user) that will be used
 // when creating and connecting to the template and test databases.
 type Role struct {
-	// The username for the role, defaults to [DefaultRoleUsername].
-	Username string
-	// The password for the role, defaults to [DefaultRolePassword].
-	Password string
-  // The capabilities that will be granted to the role, defaults to
-  // [DefaultRoleCapabilities].
-	Capabilities string
+    // The username for the role, defaults to [DefaultRoleUsername].
+    Username string
+    // The password for the role, defaults to [DefaultRolePassword].
+    Password string
+    // The capabilities that will be granted to the role, defaults to
+    // [DefaultRoleCapabilities].
+    Capabilities string
 }
 ```  
 
@@ -466,21 +466,20 @@ to run custom logic before/after running migrations.
 // A Migrator is necessary to provision the database that will be used as as template
 // for each test.
 type Migrator interface {
-  // Hash should return a unique identifier derived from the state of the database
-  // after it has been fully migrated. For instance, it may return a hash of all
-  // of the migration names and contents.
-  //
-  // pgtestdb will use the returned Hash to identify a template database. If a
-  // Migrator returns a Hash that has already been used to create a template
-  // database, it is assumed that the database need not be recreated since it
-  // would result in the same schema and data.
-  Hash() (string, error)
-
-  // Migrate is a function that actually performs the schema and data
-  // migrations to provision a template database. The connection given to this
-  // function is to an entirely new, empty, database. Migrate will be called
-  // only once, when the template database is being created.
-  Migrate(context.Context, *sql.DB, Config) error
+    // Hash should return a unique identifier derived from the state of the database
+    // after it has been fully migrated. For instance, it may return a hash of all
+    // of the migration names and contents.
+    //
+    // pgtestdb will use the returned Hash to identify a template database. If a
+    // Migrator returns a Hash that has already been used to create a template
+    // database, it is assumed that the database need not be recreated since it
+    // would result in the same schema and data.
+    Hash() (string, error)
+    // Migrate is a function that actually performs the schema and data
+    // migrations to provision a template database. The connection given to this
+    // function is to an entirely new, empty, database. Migrate will be called
+    // only once, when the template database is being created.
+    Migrate(context.Context, *sql.DB, Config) error
 }
 ```
 
@@ -602,41 +601,41 @@ method of your choice. Here's an example of connecting via `pgx`.
 // bring your own driver. Here we're using the PGX driver in stdlib mode, which
 // registers a driver with the name "pgx".
 import (
-  // ...
-  // register the PGX stdlib driver so that pgtestdb
-  // can create the test database.
-  _ "github.com/jackc/pgx/v5/stdlib"
-  // import pgx so that we can use it to connect to the database
-  "github.com/jackc/pgx/v5"
-  // ...
+    // ...
+    // register the PGX stdlib driver so that pgtestdb
+    // can create the test database.
+    _ "github.com/jackc/pgx/v5/stdlib"
+    // import pgx so that we can use it to connect to the database
+    "github.com/jackc/pgx/v5"
+    // ...
 )
 
 func TestCustom(t *testing.T) {
-  ctx := context.Background()
-  dbconf := pgtestdb.Config{
-      DriverName: "pgx",
-      User:       "postgres",
-      Password:   "password",
-      Host:       "localhost",
-      Port:       "5433",
-      Options:    "sslmode=disable",
-  }
-  m := defaultMigrator()
-  config := pgtestdb.Custom(t, dbconf, m)
-  check.NotEqual(t, dbconf, *config)
+    ctx := context.Background()
+        dbconf := pgtestdb.Config{
+        DriverName: "pgx",
+        User:       "postgres",
+        Password:   "password",
+        Host:       "localhost",
+        Port:       "5433",
+        Options:    "sslmode=disable",
+    }
+    m := defaultMigrator()
+    config := pgtestdb.Custom(t, dbconf, m)
+    check.NotEqual(t, dbconf, *config)
 
-  var conn *pgx.Conn
-  var err error
-  conn, err = pgx.Connect(ctx, config.URL())
-  assert.Nil(t, err)
-  defer func() {
-      err := conn.Close(ctx)
-      assert.Nil(t, err)
-  }()
+    var conn *pgx.Conn
+    var err error
+    conn, err = pgx.Connect(ctx, config.URL())
+    assert.Nil(t, err)
+    defer func() {
+        err := conn.Close(ctx)
+        assert.Nil(t, err)
+    }()
 
-  var message string
-  err = conn.QueryRow(ctx, "select 'hello world'").Scan(&message)
-  assert.Nil(t, err)
+    var message string
+    err = conn.QueryRow(ctx, "select 'hello world'").Scan(&message)
+    assert.Nil(t, err)
 }
 ```
 
