@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"net"
+	"net/url"
 
 	"github.com/peterldowns/pgtestdb/internal/once"
 	"github.com/peterldowns/pgtestdb/internal/sessionlock"
@@ -79,10 +81,20 @@ type Role struct {
 // URL returns a postgres connection string in the format
 // "postgres://user:password@host:port/database?options=..."
 func (c Config) URL() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?%s",
-		c.User, c.Password, c.Host, c.Port, c.Database, c.Options,
-	)
+	var user *url.Userinfo
+	if c.User != "" {
+		user = url.UserPassword(c.User, c.Password)
+	}
+
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     user,
+		Host:     net.JoinHostPort(c.Host, c.Port),
+		Path:     c.Database,
+		RawQuery: c.Options,
+	}
+
+	return u.String()
 }
 
 // Connect calls `sql.Open()“ and connects to the database.
@@ -148,6 +160,19 @@ func New(t TB, conf Config, migrator Migrator) *sql.DB {
 	return db
 }
 
+// NewFromURL is like [New], but it parses the config from connetion string.
+func NewFromURL(t TB, driverName string, url string, migrator Migrator, opts ...Option) *sql.DB {
+	t.Helper()
+
+	conf, err := ConfigFromURL(driverName, url, opts...)
+	if err != nil {
+		t.Fatalf("could not parse config: %s", err)
+		return nil
+	}
+
+	return New(t, conf, migrator)
+}
+
 // Custom is like [New] but after creating the new database instance, it closes
 // any connections and returns the configuration details of that database so
 // that you can connect to it explicitly, potentially via a different SQL
@@ -163,6 +188,19 @@ func Custom(t TB, conf Config, migrator Migrator) *Config {
 		return nil // unreachable
 	}
 	return config
+}
+
+// CustomFromURL is like [Custom], but it parses the config from the url.
+func CustomFromURL(t TB, driverName string, url string, migrator Migrator, opts ...Option) *Config {
+	t.Helper()
+
+	conf, err := ConfigFromURL(driverName, url, opts...)
+	if err != nil {
+		t.Fatalf("could not parse config: %s", err)
+		return nil
+	}
+
+	return Custom(t, conf, migrator)
 }
 
 // create contains the implementation of [New] and [Custom], and is responsible
