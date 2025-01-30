@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/peterldowns/pgtestdb/internal/once"
 	"github.com/peterldowns/pgtestdb/internal/sessionlock"
@@ -78,11 +79,34 @@ type Role struct {
 
 // URL returns a postgres connection string in the format
 // "postgres://user:password@host:port/database?options=..."
+// or
+// "postgres://user:password@/database?host=/run/postgresql?options=..."
 func (c Config) URL() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?%s",
-		c.User, c.Password, c.Host, c.Port, c.Database, c.Options,
-	)
+	u := c.User
+	if u != "" && c.Password != "" {
+		u += ":" + c.Password + "@"
+	}
+
+	const scheme = "postgres://"
+
+	if len(c.Host) > 0 && strings.HasPrefix(c.Host, "/") {
+		if c.Options == "" {
+			return fmt.Sprintf("%s%s/%s?host=%s", scheme, u, c.Database, c.Host)
+		}
+
+		return fmt.Sprintf("%s%s/%s?host=%s&%s", scheme, u, c.Database, c.Host, c.Options)
+	}
+
+	s := c.Host
+	if c.Port != "" {
+		s += ":" + c.Port
+	}
+
+	if c.Options == "" {
+		return fmt.Sprintf("%s%s%s/%s", scheme, u, s, c.Database)
+	}
+
+	return fmt.Sprintf("%s%s%s/%s?%s", scheme, u, s, c.Database, c.Options)
 }
 
 // Connect calls `sql.Open()“ and connects to the database.

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	pgx "github.com/jackc/pgx/v5"      // "pgx" driver
+	"github.com/jackc/pgx/v5"          // "pgx" driver
 	_ "github.com/jackc/pgx/v5/stdlib" // "pgx" driver
 	_ "github.com/lib/pq"              // "postgres"
 	"github.com/peterldowns/testy/assert"
@@ -81,6 +81,41 @@ func TestCustom(t *testing.T) {
 	var message string
 	err = conn.QueryRow(ctx, "select 'hello world'").Scan(&message)
 	assert.Nil(t, err)
+}
+
+func TestConfigURLLocalSocket(t *testing.T) {
+	c := pgtestdb.Config{
+		DriverName: "pgx",
+		User:       "peter",
+		Password:   "password",
+		Host:       "/run/postgresql",
+		Database:   "foo",
+		Options:    "TimeZone=UTC",
+	}
+	check.Equal(t, "postgres://peter:password@/foo?host=/run/postgresql&TimeZone=UTC", c.URL())
+}
+
+func TestConfigURL(t *testing.T) {
+	c := pgtestdb.Config{
+		DriverName: "pgx",
+		User:       "peter",
+		Password:   "password",
+		Host:       "localhost",
+		Port:       "5432",
+		Database:   "foo",
+		Options:    "sslmode=disable",
+	}
+	check.Equal(t, "postgres://peter:password@localhost:5432/foo?sslmode=disable", c.URL())
+}
+
+func TestConfigURLNoUserOrPassword(t *testing.T) {
+	c := pgtestdb.Config{
+		DriverName: "pgx",
+		Host:       "127.0.0.1",
+		Port:       "5432",
+		Database:   "test",
+	}
+	check.Equal(t, "postgres://127.0.0.1:5432/test", c.URL())
 }
 
 // These two tests should show that creating many different testdbs in parallel
