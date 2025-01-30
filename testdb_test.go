@@ -171,7 +171,7 @@ func TestDifferentHashesAlwaysResultInDifferentDatabases(t *testing.T) {
 	var countYYY int
 	err = yyydb.QueryRowContext(ctx, "select count(*) from yyy").Scan(&countYYY)
 	if check.Nil(t, err) {
-		check.Equal(t, 0, countXXX)
+		check.Equal(t, 0, countYYY)
 	}
 }
 
