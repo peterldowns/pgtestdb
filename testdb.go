@@ -62,6 +62,11 @@ type Config struct {
 	// pgtestdb will be unable to drop the database, and the test will be failed
 	// with a warning.
 	ForceTerminateConnections bool
+	// If true, the test database will be dropped even if the test fails.
+	// This prevents the test databases from accumulating in the database.
+	// This is useful for long-running tests, but may cause issues if you are
+	// debugging a test and want to inspect the database after it fails.
+	CleanupDatabaseOnFailure bool
 }
 
 // Role contains the details of a postgres role (user) that will be used
@@ -221,8 +226,9 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 			return // unreachable
 		}
 
-		// If the test failed, leave the instance around for further investigation
-		if t.Failed() {
+		// If the test failed, leave the instance around for further investigation unless the CleanupDatabaseOnFailure
+		// flag is set to true.
+		if t.Failed() && !conf.CleanupDatabaseOnFailure {
 			return
 		}
 

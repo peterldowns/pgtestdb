@@ -377,6 +377,11 @@ type Config struct {
     // pgtestdb will be unable to drop the database, and the test will be failed
     // with a warning.
     ForceTerminateConnections bool
+    // If true, the test database will be dropped even if the test fails.
+    // This prevents the test databases from accumulating in the database.
+    // This is useful for long-running tests, but may cause issues if you are
+    // debugging a test and want to inspect the database after it fails.
+    CleanupDatabaseOnFailure bool
 }
 
 // URL returns a postgres connection string in the format
