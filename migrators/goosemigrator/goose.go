@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"io/fs"
-	"os"
 
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
@@ -44,7 +43,7 @@ func WithTableName(tableName string) Option {
 
 // WithFS specifies a `fs.FS` from which to read the migration files.
 //
-// Default: `os.DirFS(".")` (reads from the real filesystem in the current working directory)
+// Default: `<nil>` (reads from the real filesystem)
 //
 // https://github.com/pressly/goose#embedded-sql-migrations
 func WithFS(dir fs.FS) Option {
@@ -68,7 +67,7 @@ func New(migrationsDir string, opts ...Option) *GooseMigrator {
 	gm := &GooseMigrator{
 		MigrationsDir: migrationsDir,
 		TableName:     DefaultTableName,
-		FS:            os.DirFS("."),
+		FS:            nil,
 	}
 	for _, opt := range opts {
 		opt(gm)
