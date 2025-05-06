@@ -639,6 +639,32 @@ func TestCustom(t *testing.T) {
 }
 ```
 
+## How do I connect to a database over unix domain socket like `/run/postgresql`?
+
+To connect to a database that is listening on a domain socket, for instance `/run/postgresql`, you
+will need to pass the socket path as a `host={socket path}` options parameter.
+
+The [Postgresql documentation](https://www.postgresql.org/docs/current/libpq-connect.html#:~:text=The%20host%20part%20is%20interpreted%20as%20described%20for%20the%20parameter%20host.) describes two ways of connecting to socket paths using a `postgres://...` connection string:
+
+> So, to specify a non-standard Unix-domain socket directory, **either omit the host part of the URI and specify the host as a named parameter**, or percent-encode the path in the host part of the URI
+
+but due to the way the golang `sql.Open` is implemented, percent-encoding the path in the `Config.Host` field won't work.
+
+So, you need to set `host={socket path}` (with appropriate URL encoding) in the `Config.Options` field:
+
+```go
+conf := pgtestdb.Config{
+  // The same approach works for both "postgres" (lib/pq) and "pgx" (pgx)
+  DriverName: "pgx",
+  User:       "postgres",
+  Port:       "5432",
+  Password:   "password",
+  // %2F is a url-encoded '/' character
+  Options:    "host=%2Frun%2Fpostgresql",
+  Database:   "postgres",
+}
+```
+
 ## Does this mean I should stop writing unit tests and doing dependency injection?
 No! Please keep writing unit tests and doing dependency injection and mocking
 and all the other things that make your code well-organized and easily
