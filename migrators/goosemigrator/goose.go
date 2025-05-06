@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"io/fs"
-	"os"
 
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
@@ -68,7 +67,7 @@ func New(migrationsDir string, opts ...Option) *GooseMigrator {
 	gm := &GooseMigrator{
 		MigrationsDir: migrationsDir,
 		TableName:     DefaultTableName,
-		FS:            os.DirFS("."),
+		FS:            nil,
 	}
 	for _, opt := range opts {
 		opt(gm)
