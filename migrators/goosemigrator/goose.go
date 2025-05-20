@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"io/fs"
 	"os"
+	"path/filepath"
 
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
@@ -44,7 +45,8 @@ func WithTableName(tableName string) Option {
 
 // WithFS specifies a `fs.FS` from which to read the migration files.
 //
-// Default: `os.DirFS(".")` (reads from the real filesystem in the current working directory)
+// Default: The base directory of migrationsDir, `os.DirFS(".")` for a local directory,
+// or `os.DirFS(filepath.Dir(migrationsDir))` for a relative path (e.g., "../../..").
 //
 // https://github.com/pressly/goose#embedded-sql-migrations
 func WithFS(dir fs.FS) Option {
@@ -66,10 +68,16 @@ func WithFS(dir fs.FS) Option {
 //   - [WithTableName] is the same as -table
 func New(migrationsDir string, opts ...Option) *GooseMigrator {
 	gm := &GooseMigrator{
-		MigrationsDir: migrationsDir,
+		MigrationsDir: filepath.Clean(migrationsDir),
 		TableName:     DefaultTableName,
 		FS:            os.DirFS("."),
 	}
+
+	if !filepath.IsLocal(gm.MigrationsDir) {
+		gm.FS = os.DirFS(filepath.Dir(gm.MigrationsDir))
+		gm.MigrationsDir = filepath.Base(gm.MigrationsDir)
+	}
+
 	for _, opt := range opts {
 		opt(gm)
 	}
