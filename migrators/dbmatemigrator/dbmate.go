@@ -23,6 +23,15 @@ import (
 //   - [WithFS]
 type Option func(*DbmateMigrator)
 
+// WithAutoDumpSchema specifies if the schema should be automatically dumped
+//
+// Default: true
+func WithAutoDumpSchema(autoDumpSchema bool) Option {
+	return func(m *DbmateMigrator) {
+		m.AutoDumpSchema = autoDumpSchema
+	}
+}
+
 // WithDir specifies the location(s) of the migration files. If you have migrations
 // in multiple directories, you should pass each path here instead of passing
 // WithDir multiple times.
@@ -72,6 +81,7 @@ func New(opts ...Option) *DbmateMigrator {
 		MigrationsDir:       defaults.MigrationsDir,
 		MigrationsTableName: defaults.MigrationsTableName,
 		FS:                  defaults.FS,
+		AutoDumpSchema:      defaults.AutoDumpSchema,
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -84,6 +94,7 @@ type DbmateMigrator struct {
 	MigrationsDir       []string
 	MigrationsTableName string
 	FS                  fs.FS
+	AutoDumpSchema      bool
 }
 
 func (m *DbmateMigrator) Hash() (string, error) {
@@ -110,5 +121,6 @@ func (m *DbmateMigrator) Migrate(
 	dbm.MigrationsDir = m.MigrationsDir
 	dbm.MigrationsTableName = m.MigrationsTableName
 	dbm.FS = m.FS
+	dbm.AutoDumpSchema = m.AutoDumpSchema
 	return dbm.CreateAndMigrate()
 }
