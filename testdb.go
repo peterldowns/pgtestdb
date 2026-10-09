@@ -201,7 +201,6 @@ func create(t TB, conf Config, migrator Migrator) (*Config, *sql.DB) {
 		t.Fatalf("failed to create instance: %s", err)
 		return nil, nil // unreachable
 	}
-	t.Logf("testdbconf: %s", instance.URL())
 
 	db, err := instance.Connect()
 	if err != nil {
